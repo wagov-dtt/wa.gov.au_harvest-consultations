@@ -46,44 +46,9 @@ def projects(url, username, password):
     columns={
         "id": "text",
         "type": "text",
-        "description": "text",
-        "name": "text",
-        "meta_description": "text",
-        "meta_keywords": "text",
-        "redirect_url": "text",
-        "permalink": "text",
-        "state": "text",
-        "banner_url": "text",
-        "restrict_forum_creation": "boolean",
-        "description_display_mode": "text",
-        "visibility_mode": "text",
-        "platform_analytics_tag_list": "array<text>",
-        "project_tag_list": "array<text>",
-        "image_url": "text",
-        "image_caption": "text",
-        "image_description": "text",
-        "text_wrap_mode": "text",
-        "parent_id": "int",
-        "subscribers_count": "int",
-        "view_count": "int",
-        "home_project": "boolean",
-        "published_at": "timestamp",
-        "forum_topics": "int",
-        "survey_tools": "int",
-        "banner_caption": "text",
-        "widget_resource_count": "int",
-        "quick_poll_layout": "text",
-        "created_at": "timestamp",
-        "updated_at": "timestamp",
-        "archival_reason_message": "text",
-        "access": "boolean",
-        "contribution_count": "int",
-        "scheduled_at": "timestamp",
-        "is_social_sharing_modal_enabled": "boolean",
-        "role_in_current_context": "text",
-        "can_contribute": "boolean",
-        "site_id": "text",
-        "site_type": "text"
+        "attributes": "json",
+        "relationships": "json",
+        "links": "json"
     }
 )
 def execute(
@@ -94,5 +59,5 @@ def execute(
     **kwargs: t.Any,
 ) -> pd.DataFrame:
     df = pd.concat([pd.DataFrame(projects(**config)) for config in secrets["mysay"]])
-    print(df.head())
+    print(df.columns)
     return df
