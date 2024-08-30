@@ -1,3 +1,7 @@
+# Configuration of what apis to harvest, will be loaded from this or an env var called secrets.yaml
+secrets.yaml
+logs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

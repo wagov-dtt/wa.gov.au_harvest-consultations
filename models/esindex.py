@@ -4,21 +4,41 @@ from datetime import datetime
 
 import pandas as pd
 from sqlmesh import ExecutionContext, model
+import yaml, os, json
+from elasticsearch import Elasticsearch
+from elasticsearch.helpers import scan
+
+secrets = yaml.safe_load(os.environ.get("secrets.yaml", open("secrets.yaml").read()))
+
+def fetch_all_documents(url, username, password, index):
+    # Create Elasticsearch client
+    es = Elasticsearch(url, basic_auth=(username, password))
+
+    # Use the scan helper to efficiently scroll through all documents
+    documents = list(scan(es, index=index, query={"query": {"match_all": {}}}))
+
+    return documents
 
 @model(
-    "esindex",
-    owner="janet",
+    "esindex.full_model",
     columns={
-        "id": "int",
-        "name": "text",
-    },
-    column_descriptions={
-        "id": "Unique ID",
-        "name": "Name corresponding to the ID",
-    },
-    audits=[
-        ("not_null", {"columns": ["id"]}),
-    ],
+        "ConsultationIdentifier": "int",
+        "ConsultationApiGatewayId": "text",
+        "ConsultationTitle": "text",
+        "ConsultationShortDescription": "text",
+        "ConsultationShortDescriptionTrimmed": "text",
+        "ConsultationStatus": "int",
+        "ConsultationAgencyName": "text",
+        "ConsultationAgencyNameText": "text",
+        "ConsultationEditorName": "text",
+        "ConsultationEditorEmail": "text",
+        "ConsultationKeywords": "text",
+        "ConsultationSubmissionDate": "timestamp",
+        "ConsultationCategories": "text",
+        "ConsultationRegion": "text",
+        "ConsultationPublishDate": "timestamp",
+        "ConsultationUrl": "text"
+    }
 )
 def execute(
     context: ExecutionContext,
@@ -27,7 +47,5 @@ def execute(
     execution_time: datetime,
     **kwargs: t.Any,
 ) -> pd.DataFrame:
-
-    return pd.DataFrame([
-        {"id": 1, "name": "name"}
-    ])
+    docs = [doc["_source"] for doc in fetch_all_documents(**secrets["esindex"])]
+    return pd.DataFrame(docs)

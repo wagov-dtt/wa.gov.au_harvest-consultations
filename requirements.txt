@@ -2,3 +2,4 @@ requests
 elasticsearch
 ibis-framework[duckdb]
 sqlmesh
+pyyaml
