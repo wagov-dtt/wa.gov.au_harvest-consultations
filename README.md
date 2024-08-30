@@ -21,29 +21,26 @@ graph TD
 ## Process Steps
 
 1. **Data Harvesting**: Use SQLMesh to connect to and harvest data from external REST APIs.
-   - [SQLMesh Data Sources Documentation](https://sqlmesh.com/docs/data-sources/)
+   - [SQLMesh Python Models](https://sqlmesh.readthedocs.io/en/stable/concepts/models/python_models/)
 
 2. **Data Enrichment with Seeds**: Utilize SQLMesh seeds to enhance the harvested data.
-   - [SQLMesh Seeds Documentation](https://sqlmesh.com/docs/seeds/)
+   - [SQLMesh Seeds](https://sqlmesh.readthedocs.io/en/stable/concepts/models/seed_models/)
 
 3. **Transformation and Deduplication**: Leverage SQLMesh's SQL capabilities to process the enriched data.
-   - [SQLMesh SQL Functions and Operators](https://sqlmesh.com/docs/sql-functions-operators/)
+   - [SQLMesh SQL Models](https://sqlmesh.readthedocs.io/en/stable/concepts/models/sql_models/)
 
 4. **Elasticsearch Ingestion**: Configure SQLMesh to output the processed data to Elasticsearch.
-   - [SQLMesh Sink Configuration](https://sqlmesh.com/docs/sinks/)
+   - [SQLMesh Python Models](https://sqlmesh.readthedocs.io/en/stable/concepts/models/python_models/)
 
 5. **Drupal Integration**: Set up a Drupal view to consume the Elasticsearch index directly, enabling filtering on wa.gov.au.
 
 ## Key SQLMesh Concepts
 
-- **Sources**: Define connections to REST APIs
+- **Python Models**: Define connections to REST APIs and output to Elasticsearch
 - **Seeds**: Provide static data for enrichment
 - **Views**: Create SQL transformations
-- **Sinks**: Configure output to Elasticsearch
 
 ## Notes on SQLMesh Seeds for Data Enrichment
-
-SQLMesh seeds are a powerful feature for enriching source API data, resulting in a more comprehensive and useful Elasticsearch index. Here are some key points:
 
 1. **Purpose**: Seeds allow you to incorporate static or slowly changing data into your data pipeline.
 
