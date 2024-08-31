@@ -21,5 +21,7 @@ jobs:
         run: pip install -r requirements.txt
         shell: bash
       - name: Build and deploy sqlmesh prod env
+        env:
+          SECRETS_YAML: ${{ secrets.SECRETS_YAML }}
         run: sqlmesh plan --auto-apply --run --verbose
         shell: bash
