@@ -1,0 +1,25 @@
+name: SQLMesh Hourly
+run-name: 🚀 SQLMesh Hourly 🚀
+on:
+  schedule:
+    - cron: '0 * * * *'  # Runs every hour
+  workflow_dispatch:  # Allows manual triggering
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  sqlmesh:
+    name: SQLMesh Actions Workflow
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - uses: actions/checkout@v4
+      - name: Install SQLMesh + Dependencies
+        run: pip install -r requirements.txt
+        shell: bash
+      - name: Build and deploy sqlmesh prod env
+        run: sqlmesh plan --auto-apply --run --verbose
+        shell: bash
