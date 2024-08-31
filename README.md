@@ -18,6 +18,10 @@ graph TD
 
 ```
 
+## Schema Diagram
+
+![schema](schema.png)
+
 ## Process Steps
 
 1. **Data Harvesting**: Use SQLMesh to connect to and harvest data from external REST APIs.

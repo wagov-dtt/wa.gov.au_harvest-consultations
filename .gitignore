@@ -1,6 +1,8 @@
-# Configuration of what apis to harvest, will be loaded from this or an env var called secrets.yaml
+# Secrets and state that shouldn't be tracked
 secrets.yaml
 logs/
+*.db
+*.db-wal
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

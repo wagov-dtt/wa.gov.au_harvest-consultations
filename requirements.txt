@@ -1,4 +1,4 @@
 requests==2.32.3
 elasticsearch==8.15.0
-sqlmesh==0.116.0
+sqlmesh[web]==0.116.0
 PyYAML==6.0.2

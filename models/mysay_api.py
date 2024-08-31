@@ -3,15 +3,18 @@ import typing as t
 import pandas as pd
 import requests
 from sqlmesh import ExecutionContext, model
+
 from common import secrets
 
 def get_projects(url: str, username: str, password: str) -> list:
     # Authenticate and fetch projects
-    auth_token = requests.post(f"{url}/tokens", json={"data": {"attributes": {"login": username, "password": password}}}).json()['data']['attributes']['token']
+    auth_token = requests.post(f"{url}/tokens", json={"data": {"attributes": {
+                               "login": username, "password": password}}}).json()['data']['attributes']['token']
     return requests.get(f"{url}/projects", params={"per_page": 10000}, headers={"Authorization": f"Bearer {auth_token}"}).json()["data"]
 
+
 @model(
-    "mysay.full_model",
+    "mysay.api",
     columns={
         "id": "text", "type": "text", "attributes": "json",
         "relationships": "json", "links": "json"
