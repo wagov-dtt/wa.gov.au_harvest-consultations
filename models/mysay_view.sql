@@ -5,8 +5,8 @@ MODEL (
 
 SELECT
   id AS ConsultationIdentifier,
-  attributes ->> '$.name' AS ConsultationTitle,
-  links ->> '$.self' AS ConsultationUrl,
-  attributes ->> '$.description' AS ConsultationShortDescription,
+  CAST(attributes ->> '$.name' AS TEXT) AS ConsultationTitle,
+  CAST(links ->> '$.self' AS TEXT) AS ConsultationUrl,
+  CAST(attributes ->> '$.description' AS TEXT) AS ConsultationShortDescription,
   'Current' AS syncstate
 FROM mysay.api
