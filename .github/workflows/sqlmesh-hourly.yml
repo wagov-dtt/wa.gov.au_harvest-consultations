@@ -11,6 +11,9 @@ jobs:
   sqlmesh:
     name: SQLMesh Actions Workflow
     runs-on: training
+    container:
+      # Runner docker image
+      image: ubuntu:24.04
     steps:
       - name: Setup Python 3.12
         uses: actions/setup-python@v4
