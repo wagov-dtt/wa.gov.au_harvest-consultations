@@ -22,7 +22,7 @@ Setup a github actions runner user on a debian box (see [cloudformation-example.
 
 ```bash
 sudo useradd -m -s /bin/bash ghactions01
-sudo usermod -aG sudo ghactions01
+sudo usermod -aG sudo,docker ghactions01
 echo "%sudo ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/nopasswd
 sudo su - ghactions01
 # follow github self hosted runner onboarding
