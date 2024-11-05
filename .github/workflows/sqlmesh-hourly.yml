@@ -15,8 +15,10 @@ jobs:
       # Runner docker image
       image: ubuntu:24.04
     steps:
+      - name: Install SQLite dependencies
+        run: sudo apt-get update && sudo apt-get install -y libsqlite3-0 libsqlite3-dev
       - name: Setup Python 3.12
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - uses: actions/checkout@v4
