@@ -13,7 +13,7 @@ jobs:
     runs-on: training
     container:
       # Runner docker image
-      image: mcr.microsoft.com/devcontainers/python:1-3.12-bullseye
+      image: mcr.microsoft.com/devcontainers/python:3.12-bookworm
     steps:
       - uses: actions/checkout@v4
       - name: Install SQLMesh + Dependencies
