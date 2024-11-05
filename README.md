@@ -8,6 +8,31 @@ This document outlines a process using SQLMesh to harvest data from external RES
 
 Once opened, you can run `sqlmesh ui` in the cli, and open the resultant port in a browser to edit/debug the pipelines.
 
+## Prerequisites
+
+Install brew and aws cli to enable accessing secrets from aws:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+echo >> ~/.bashrc
+echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> ~/.bashrc
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+brew bundle install
+```
+
+Setup a github actions runner user on a debian box (see [cloudformation-example.yaml](./cloudformation-example.yaml) for an example) that has access to secrets manager and appropriate networking for pipelines
+
+```bash
+sudo useradd -m -s /bin/bash ghactions01
+sudo usermod -aG sudo ghactions01
+echo "%sudo ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/nopasswd
+sudo su - ghactions01
+# follow github self hosted runner onboarding
+# in dir /home/ghactions01/actions-runner
+./svc.sh install ghactions01
+./svc.sh start
+```
+
 ## Workflow Diagram
 
 ```mermaid
