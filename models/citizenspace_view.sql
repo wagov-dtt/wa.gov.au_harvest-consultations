@@ -4,6 +4,13 @@ MODEL (
 );
 
 SELECT
-  url AS ConsultationUrl,
-  'Current' AS syncstate
+  'citizenspace' AS source,
+  title AS name,
+  overview AS description,
+  status,
+  department AS agency,
+  'Western Australia' AS region,
+  url,
+  startdate::DATE AS publishdate,
+  enddate::DATE AS expirydate
 FROM citizenspace.api
