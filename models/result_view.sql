@@ -10,7 +10,3 @@ UNION ALL BY NAME
 SELECT
   *
 FROM citizenspace.view
-UNION ALL BY NAME
-SELECT
-  *
-FROM esindex.view

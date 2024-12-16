@@ -1,0 +1,7 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: wa.gov.au-harvest-consultations
+manifests:
+  rawYaml:
+    - kubernetes.yaml

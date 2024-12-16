@@ -1,0 +1,22 @@
+name: Build with Just and Homebrew
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: Homebrew/actions/setup-homebrew@master
+    - name: Install just
+      run: brew install just
+    - name: Build
+      run: just build

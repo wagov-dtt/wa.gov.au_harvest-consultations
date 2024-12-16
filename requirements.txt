@@ -1,4 +1,0 @@
-requests>=2.32
-elasticsearch>=8.15
-sqlmesh[web,github]>=0.130
-PyYAML>=6
