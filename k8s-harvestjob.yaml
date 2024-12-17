@@ -17,3 +17,21 @@ spec:
               key: SECRETS_YAML
       restartPolicy: Never
 ---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: harvest-debug
+spec:
+  template:
+    spec:
+      containers:
+      - name: harvest
+        image: harvest-consultations
+        command: ["sleep", "infinity"]
+        env:
+        - name: SECRETS_YAML
+          valueFrom:
+            secretKeyRef:
+              name: harvest
+              key: SECRETS_YAML
+      restartPolicy: Never

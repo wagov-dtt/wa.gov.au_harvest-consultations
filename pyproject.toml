@@ -8,5 +8,5 @@ dependencies = [
     "elasticsearch>=8.17.0",
     "pyyaml>=6.0.2",
     "requests>=2.32.3",
-    "sqlmesh[github,web]>=0.140.1",
+    "sqlmesh[github,mysql,web]>=0.140.1",
 ]

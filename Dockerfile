@@ -7,4 +7,4 @@ ADD . /app
 WORKDIR /app
 RUN uv sync --frozen
 
-CMD ["sqlmesh", "ui"]
+CMD ["uv", "run", "sqlmesh", "ui"]

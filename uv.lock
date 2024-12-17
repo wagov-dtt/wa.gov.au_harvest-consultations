@@ -510,6 +510,25 @@ wheels = [
 ]
 
 [[package]]
+name = "mysql-connector-python"
+version = "9.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d7/c7/d7adba0a87d34c56ce2e8c35f9965df860a087a03e9651039f7916abd483/mysql-connector-python-9.1.0.tar.gz", hash = "sha256:346261a2aeb743a39cf66ba8bde5e45931d313b76ce0946a69a6d1187ec7d279", size = 307529 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b0/76/4b28bf024ba99a05cba78745e231e24f6d2a9b63a1cfeba7c36a69cbd077/mysql_connector_python-9.1.0-cp312-cp312-macosx_13_0_arm64.whl", hash = "sha256:f67b22e3eaf5b03ffac97232d3dd67b56abcacad907ad4391c847bad5ba58f0e", size = 15141453 },
+    { url = "https://files.pythonhosted.org/packages/58/38/0fb13631332a59509eb7725a87b90dfd811bf82d7257d34484346a87f937/mysql_connector_python-9.1.0-cp312-cp312-macosx_13_0_x86_64.whl", hash = "sha256:c75f674a52b8820c90d466183b2bb59f89bcf09d17ebe9b391313d89565c8896", size = 15967485 },
+    { url = "https://files.pythonhosted.org/packages/d6/bf/3973681fc3714c8b4372903997ca50e9cce9eb489f0fdfce415be4cf70a5/mysql_connector_python-9.1.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:e75ecb3df2c2cbe4d92d5dd58a318fa708edebc0fa2d850fc2a9d42481dbb808", size = 34065410 },
+    { url = "https://files.pythonhosted.org/packages/61/a6/a322e8a7dd8daf6a2006828d4848d0b33fb627703635ee23b2278033c50b/mysql_connector_python-9.1.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:7d99c0a841a2c2a0e4d5b28376c1bfac794ec3821b66eb6fa2f7702cec820ee8", size = 34412287 },
+    { url = "https://files.pythonhosted.org/packages/4e/81/a4f21984691021749888aadc41f27b4c393884fa1d163c64979d408cf795/mysql_connector_python-9.1.0-cp312-cp312-win_amd64.whl", hash = "sha256:30a8f0ba84f8adf15a4877e80b3f97f786ce35616d918b9310578a2bd22952d5", size = 16059360 },
+    { url = "https://files.pythonhosted.org/packages/39/e5/4f08a4a7f574f5700b3118c084085c6d977ba06941c8837e89e25dc1c5d3/mysql_connector_python-9.1.0-cp313-cp313-macosx_13_0_arm64.whl", hash = "sha256:d627ebafc0327b935d8783454e7a4b5c32324ed39a2a1589239490ab850bf7d7", size = 15141401 },
+    { url = "https://files.pythonhosted.org/packages/c4/dc/b39956f85ba4fd89abfcce0dbb00e65cc22a193fa2e95c7816acee6009eb/mysql_connector_python-9.1.0-cp313-cp313-macosx_13_0_x86_64.whl", hash = "sha256:e26a08a9500407fa8f4a6504f7077d1312bec4fa52cb0a58c1ad324ca1f3eeaa", size = 15967428 },
+    { url = "https://files.pythonhosted.org/packages/6c/f2/98ecd7fdca742deeda783b9ac3c5a7a57fd2e2fccbb920308eb2f2a962af/mysql_connector_python-9.1.0-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:109e17a4ada1442e3881a51e2bbabcb336ad229a619ac61e9ad24bd6b9b117bd", size = 34065528 },
+    { url = "https://files.pythonhosted.org/packages/93/db/4d1e501f5eeb4e43aed8b622139d2350cfa049aaf2f8c5662fe0ba446f04/mysql_connector_python-9.1.0-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:4f102452c64332b7e042fa37b84d4f15332bd639e479d15035f2a005fb9fbb34", size = 34412450 },
+    { url = "https://files.pythonhosted.org/packages/1e/fc/62adbf3495c0e6a7d0a7cdf9a9276651dd8f2f31fda98b8283172fae9736/mysql_connector_python-9.1.0-cp313-cp313-win_amd64.whl", hash = "sha256:25e261f3260ec798c48cb910862a299e565548a1b5421dec84315ddbc9ef28c4", size = 16059353 },
+    { url = "https://files.pythonhosted.org/packages/ac/7e/5546cf19c8d0724e962e8be1a5d1e7491f634df550bf9da073fb6c2b93a1/mysql_connector_python-9.1.0-py2.py3-none-any.whl", hash = "sha256:dacf1aa84dc7dd8ae908626c3ae50fce956d0105130c7465fd248a4f035d50b1", size = 381081 },
+]
+
+[[package]]
 name = "numpy"
 version = "2.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1038,6 +1057,9 @@ wheels = [
 github = [
     { name = "pygithub" },
 ]
+mysql = [
+    { name = "mysql-connector-python" },
+]
 web = [
     { name = "fastapi" },
     { name = "pyarrow" },
@@ -1195,7 +1217,7 @@ dependencies = [
     { name = "elasticsearch" },
     { name = "pyyaml" },
     { name = "requests" },
-    { name = "sqlmesh", extra = ["github", "web"] },
+    { name = "sqlmesh", extra = ["github", "mysql", "web"] },
 ]
 
 [package.metadata]
@@ -1203,7 +1225,7 @@ requires-dist = [
     { name = "elasticsearch", specifier = ">=8.17.0" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "requests", specifier = ">=2.32.3" },
-    { name = "sqlmesh", extras = ["github", "web"], specifier = ">=0.140.1" },
+    { name = "sqlmesh", extras = ["github", "mysql", "web"], specifier = ">=0.140.1" },
 ]
 
 [[package]]

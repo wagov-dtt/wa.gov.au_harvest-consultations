@@ -19,7 +19,11 @@ Available recipes:
     prereqs  # Install project tools
 ```
 
-To get started, run `just everest` and use the web ui to create a database, then configure its details in a .env file so sqlmesh can locally access it.
+To get started, run `just everest` and use the web ui to create a database.
+
+The database will need to have `pxc_strict_mode=PERMISSIVE` set as a parameter to allow sqlmesh to create tables without primary keys.
+
+Configure secrets then run `skaffold dev` (which expects secrets created in cluster).
 
 ## Deploying to AWS
 

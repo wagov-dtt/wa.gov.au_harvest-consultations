@@ -9,6 +9,10 @@ build: prereqs
   eval $(minikube -p minikube docker-env)
   skaffold build
 
+# SQLmesh ui for local dev
+local-dev:
+  uv run sqlmesh ui
+
 # Setup minikube
 minikube: prereqs
   minikube start

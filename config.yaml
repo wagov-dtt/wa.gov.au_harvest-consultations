@@ -2,7 +2,14 @@ gateways:
   local:
     connection:
       type: duckdb
-      database: db.db
+      extensions:
+        - mysql
+      catalogs:
+        memory: ':memory:'
+        mysql_db:
+          type: mysql
+          path: {{ env_var('MYSQL_DUCKDB_PATH') }}
+
 
 default_gateway: local
 
