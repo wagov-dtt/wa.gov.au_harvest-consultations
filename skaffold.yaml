@@ -1,7 +1,21 @@
 apiVersion: skaffold/v4beta11
 kind: Config
 metadata:
-  name: wa.gov.au-harvest-consultations
+  name: harvest-consultations
+build:
+  local:
+    push: false
+  artifacts:
+  - image: harvest-consultations
+    buildpacks:
+      builder: "gcr.io/buildpacks/builder:google-22"
+    sync:
+      infer:
+        - 'models'
 manifests:
+  hooks:
+    before:
+      - host:
+          command: ["bash", "-c", 'kubectl create secret generic harvest --from-literal=SECRETS_YAML="$SECRETS_YAML" || echo "secret exists"']
   rawYaml:
-    - kubernetes.yaml
+      - k8s-*.yaml

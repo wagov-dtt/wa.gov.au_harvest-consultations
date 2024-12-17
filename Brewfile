@@ -1,4 +1,4 @@
 tap "homebrew/bundle"
-brew "nixpacks"
+brew "buildpacks/tap/pack"
 brew "skaffold"
 brew "uv"

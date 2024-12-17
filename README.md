@@ -6,30 +6,24 @@ This document outlines an hourly process using SQLMesh to harvest data from exte
 
 Once opened, you can run `sqlmesh ui` in the cli, and open the resultant port in a browser to edit/debug the pipelines.
 
-## Prerequisites
+## Developing with Skaffold
 
-Install brew and aws cli to enable accessing secrets from aws:
-
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-echo >> ~/.bashrc
-echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> ~/.bashrc
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-brew bundle install
-```
-
-Setup a github actions runner user on a debian box (see [cloudformation-example.yaml](./cloudformation-example.yaml) for an example) that has access to secrets manager and appropriate networking for pipelines
+The `justfile` in this repository has most useful commands:
 
 ```bash
-sudo useradd -m -s /bin/bash ghactions01
-sudo usermod -aG sudo,docker ghactions01
-echo "%sudo ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/nopasswd
-sudo su - ghactions01
-# follow github self hosted runner onboarding
-# in dir /home/ghactions01/actions-runner
-./svc.sh install ghactions01
-./svc.sh start
+$ just -l
+Available recipes:
+    build    # Build container images
+    everest  # Percona Everest webui to manage databases
+    minikube # Setup minikube
+    prereqs  # Install project tools
 ```
+
+To get started, run `just everest` and use the web ui to create a database, then configure its details in a .env file so sqlmesh can locally access it.
+
+## Deploying to AWS
+
+TODO: Configure just command to push built image to AWS
 
 ## Workflow Diagram
 ```mermaid
