@@ -3,12 +3,8 @@ kind: Config
 metadata:
   name: harvest-consultations
 build:
-  local:
-    push: false
   artifacts:
   - image: harvest-consultations
-    buildpacks:
-      builder: "gcr.io/buildpacks/builder:google-22"
     sync:
       infer:
         - 'models'

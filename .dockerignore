@@ -1,0 +1,3 @@
+.venv
+skaffold.yaml
+k8s-*.yaml

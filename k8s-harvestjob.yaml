@@ -8,7 +8,7 @@ spec:
       containers:
       - name: harvest
         image: harvest-consultations
-        command: ["sqlmesh", "plan", "--auto-apply", "--run", "--verbose"]
+        command: ["uv", "run", "sqlmesh", "plan", "--auto-apply", "--run", "--verbose"]
         env:
         - name: SECRETS_YAML
           valueFrom:
