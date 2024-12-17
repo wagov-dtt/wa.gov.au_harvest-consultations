@@ -1,5 +1,6 @@
 tap "homebrew/bundle"
-brew "buildpacks/tap/pack"
 brew "skaffold"
+brew "fzf"
 brew "uv"
 brew "k9s"
+brew "mysql"

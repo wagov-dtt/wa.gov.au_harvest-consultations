@@ -1,27 +1,41 @@
 # SQLMesh Data Pipeline for Drupal Integration
 ## Overview
-This document outlines an hourly process using SQLMesh to harvest data from external REST APIs, transform it, and store it in MySQL for consumption by Drupal views on wa.gov.au. Content ownership is determined by environment variables injected via GitHub Actions self-hosted runners, running near the database instance.
+This document outlines an hourly process using SQLMesh to harvest data from external REST APIs, transform it, and store it in MySQL for consumption by Drupal views.
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/wagov-dtt/wa.gov.au_harvest-consultations)
 
-Once opened, you can run `sqlmesh ui` in the cli, and open the resultant port in a browser to edit/debug the pipelines.
-
-## Developing with Skaffold
-
+## Developing locally
 The `justfile` in this repository has most useful commands:
 
 ```bash
-$ just -l
+$ just -l -u
 Available recipes:
-    build    # Build container images
-    everest  # Percona Everest webui to manage databases
-    minikube # Setup minikube
-    prereqs  # Install project tools
+    default    # Choose a task to run
+    prereqs    # Install project tools
+    build      # Build container images
+    local-dev  # SQLmesh ui for local dev
+    minikube   # Setup minikube
+    everestctl # Install percona everest cli
+    everest    # Percona Everest webui to manage databases
 ```
 
-To get started, run `just everest` and use the web ui to create a database.
+To get started, run `just everest` and use the web ui to create a database. Configure the database details in the env var `MYSQL_DUCKDB_PATH`, then forward its port with kubectl as follows:
 
-The database will need to have `pxc_strict_mode=PERMISSIVE` set as a parameter to allow sqlmesh to create tables without primary keys.
+```bash
+export MYSQL_PWD='<password-from-everest-web-ui>'
+kubectl port-forward svc/<name-from-everest-web-ui>-haproxy 3306:3306 -n everest &
+mysql -uroot -h127.0.0.1 -e 'create database sqlmesh; SET GLOBAL pxc_strict_mode=PERMISSIVE;'
+export MYSQL_DUCKDB_PATH='host=localhost user=root database=sqlmesh'
+just local-dev
+```
+
+To dump the `sqlmesh` database for validation/testing:
+
+```bash
+mysqldump -uroot -h127.0.0.1 sqlmesh | gzip > sqlmesh.sql.gz
+```
+
+## Testing container with skaffold
 
 Configure secrets then run `skaffold dev` (which expects secrets created in cluster).
 

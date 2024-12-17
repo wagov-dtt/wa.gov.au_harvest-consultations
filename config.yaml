@@ -6,7 +6,7 @@ gateways:
         - mysql
       catalogs:
         memory: ':memory:'
-        mysql_db:
+        mysqldb:
           type: mysql
           path: {{ env_var('MYSQL_DUCKDB_PATH') }}
 

@@ -1,3 +1,7 @@
+# Choose a task to run
+default:
+  @just --choose
+
 # Install project tools
 prereqs:
   brew bundle install
@@ -6,7 +10,6 @@ prereqs:
 
 # Build container images
 build: prereqs
-  eval $(minikube -p minikube docker-env)
   skaffold build
 
 # SQLmesh ui for local dev
@@ -15,13 +18,18 @@ local-dev:
 
 # Setup minikube
 minikube: prereqs
-  minikube start
+  minikube status || minikube start
 
-# Percona Everest webui to manage databases
-everest: minikube
+# Install percona everest cli
+everestctl:
   curl -sSL -o everestctl-linux-amd64 https://github.com/percona/everest/releases/latest/download/everestctl-linux-amd64
   sudo install -m 555 everestctl-linux-amd64 /usr/local/bin/everestctl
   rm everestctl-linux-amd64
-  everestctl install
-  everestctl accounts initial-admin-password
-  kubectl port-forward svc/everest 8080:8080 -n everest-system
+
+# Percona Everest webui to manage databases
+everest: minikube
+  which everestctl || @just everestctl
+  everestctl accounts list || everestctl install --skip-wizard
+  everestctl accounts set-password --username admin --new-password everest
+  kubectl port-forward svc/everest 8080:8080 -n everest-system &
+  @echo "Manage databases: http://localhost:8080 (login admin/everest)"
