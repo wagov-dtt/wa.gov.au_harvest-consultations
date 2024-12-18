@@ -1,3 +1,5 @@
+set dotenv-load
+
 # Choose a task to run
 default:
   @just --choose
@@ -12,13 +14,29 @@ prereqs:
 build: prereqs
   skaffold build
 
-# SQLmesh ui for local dev
-local-dev:
+# Setup minikube
+minikube:
+  which k9s || @just prereqs
+  minikube status || minikube start
+
+# Forward mysql from service defined in env
+mysql-svc: minikube
+  ss -ltpn | grep 3306 || kubectl port-forward $KUBECTL_FORWARD_MYSQL 3306:3306 -n everest & sleep 1
+
+# SQLMesh ui for local dev
+dev: mysql-svc
+  @just mysql sqlmesh -e exit || just mysql -e 'create database sqlmesh; SET GLOBAL pxc_strict_mode=PERMISSIVE;'
   uv run sqlmesh ui
 
-# Setup minikube
-minikube: prereqs
-  minikube status || minikube start
+# mysqldump configured with same env as SQLMesh
+[positional-arguments]
+mysqldump *args: mysql-svc
+  mysqldump -uroot -h127.0.0.1 "$@"
+
+# mysql configured with same env as SQLMesh
+[positional-arguments]
+mysql *args: mysql-svc
+  mysql -uroot -h127.0.0.1 "$@"
 
 # Install percona everest cli
 everestctl:
@@ -31,5 +49,5 @@ everest: minikube
   which everestctl || @just everestctl
   everestctl accounts list || everestctl install --skip-wizard
   everestctl accounts set-password --username admin --new-password everest
-  kubectl port-forward svc/everest 8080:8080 -n everest-system &
+  ss -ltpn | grep 8080 || kubectl port-forward svc/everest 8080:8080 -n everest-system &
   @echo "Manage databases: http://localhost:8080 (login admin/everest)"

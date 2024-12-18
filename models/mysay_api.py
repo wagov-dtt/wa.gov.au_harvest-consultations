@@ -1,17 +1,23 @@
 from datetime import datetime
-import typing as t
+from typing import Any
 import pandas as pd
-import requests
+import os, requests, yaml
 from sqlmesh import ExecutionContext, model
 
-from common import secrets
+# extract configs from env
+configs = yaml.safe_load(os.environ["SECRETS_YAML"]).get("mysay", [])
 
-def get_projects(url: str, username: str, password: str) -> list:
-    # Authenticate and fetch projects
-    auth_token = requests.post(f"{url}/tokens", json={"data": {"attributes": {
+def load(config: dict) -> pd.DataFrame:
+    # Function to use a config to return a dataframe
+    url, username, password = config["url"], config["username"], config["password"]
+    try:
+        auth_token = requests.post(f"{url}/tokens", json={"data": {"attributes": {
                                "login": username, "password": password}}}).json()['data']['attributes']['token']
-    return requests.get(f"{url}/projects", params={"per_page": 10000}, headers={"Authorization": f"Bearer {auth_token}"}).json()["data"]
-
+        result = requests.get(f"{url}/projects", params={"per_page": 10000}, headers={"Authorization": f"Bearer {auth_token}"}).json()["data"]
+    except Exception as e:
+        print(e)
+        result = []
+    return pd.DataFrame(result)
 
 @model(
     "mysay.api",
@@ -20,5 +26,9 @@ def get_projects(url: str, username: str, password: str) -> list:
         "relationships": "json", "links": "json"
     }
 )
-def execute(context: ExecutionContext, start: datetime, end: datetime, execution_time: datetime, **kwargs: t.Any) -> pd.DataFrame:
-    return pd.concat([pd.DataFrame(get_projects(**config)) for config in secrets["mysay"]])
+def execute(context: ExecutionContext, start: datetime, end: datetime, execution_time: datetime, **kwargs: Any) -> pd.DataFrame:
+    # Iterate over each config and load the data into a DataFrame
+    dataframes = map(load, configs)
+    # concat all results
+    result = pd.concat(dataframes)
+    return result
