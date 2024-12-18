@@ -25,6 +25,18 @@ dev: mysql-svc
   @just mysql sqlmesh -e exit || just mysql -e 'create database sqlmesh; SET GLOBAL pxc_strict_mode=PERMISSIVE;'
   uv run sqlmesh ui
 
+# Build and test container (run dev first to make sure db exists)
+test: mysql-svc
+  docker build . -t harvest-consultations
+  @just mysql -e 'SET GLOBAL pxc_strict_mode=PERMISSIVE;'
+  @docker run --net=host \
+    -e SECRETS_YAML='{{env('SECRETS_YAML')}}' \
+    -e MYSQL_PWD='{{env('MYSQL_PWD')}}' \
+    -e MYSQL_DUCKDB_PATH='{{env('MYSQL_DUCKDB_PATH')}}' \
+    harvest-consultations \
+    sqlmesh plan --auto-apply --run --verbose
+  trivy image harvest-consultations
+
 # skaffold configured with env and minikube
 [positional-arguments]
 skaffold *args: minikube
