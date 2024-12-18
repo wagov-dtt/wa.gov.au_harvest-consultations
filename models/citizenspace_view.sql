@@ -9,6 +9,7 @@ SELECT
   overview AS description,
   status,
   department AS agency,
+  NULL AS tags,
   'Western Australia' AS region,
   url,
   startdate::DATE AS publishdate,

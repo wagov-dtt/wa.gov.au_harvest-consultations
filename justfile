@@ -22,7 +22,8 @@ mysql-svc: minikube
 
 # SQLMesh ui for local dev
 dev: mysql-svc
-  @just mysql sqlmesh -e exit || just mysql -e 'create database sqlmesh; SET GLOBAL pxc_strict_mode=PERMISSIVE;'
+  @just mysql sqlmesh -e exit || just mysql -e 'create database sqlmesh;'
+  @just mysql -e 'SET GLOBAL pxc_strict_mode=PERMISSIVE;'
   uv run sqlmesh ui
 
 # Build and test container (run dev first to make sure db exists)
@@ -35,7 +36,6 @@ test: mysql-svc
     -e MYSQL_DUCKDB_PATH='{{env('MYSQL_DUCKDB_PATH')}}' \
     harvest-consultations \
     sqlmesh plan --auto-apply --run --verbose
-  trivy image harvest-consultations
 
 # skaffold configured with env and minikube
 [positional-arguments]

@@ -4,9 +4,14 @@ MODEL (
 );
 
 SELECT
-  id AS ConsultationIdentifier,
-  CAST(attributes ->> '$.name' AS TEXT) AS ConsultationTitle,
-  CAST(links ->> '$.self' AS TEXT) AS ConsultationUrl,
-  CAST(attributes ->> '$.description' AS TEXT) AS ConsultationShortDescription,
-  'Current' AS syncstate
+  'mysay' AS source,
+  name,
+  description,
+  state AS status,
+  agency,
+  ARRAY_TO_STRING("project-tag-list", ',') AS tags,
+  'Western Australia' AS region,
+  url,
+  "published-at"::DATE AS publishdate,
+  NULL::DATE AS expirydate
 FROM mysay.api
