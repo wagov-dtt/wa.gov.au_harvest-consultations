@@ -11,13 +11,16 @@ The `justfile` in this repository has most useful commands:
 ```bash
 $ just -l -u
 Available recipes:
-    default    # Choose a task to run
-    prereqs    # Install project tools
-    build      # Build container images
-    local-dev  # SQLmesh ui for local dev
-    minikube   # Setup minikube
-    everestctl # Install percona everest cli
-    everest    # Percona Everest webui to manage databases
+    default         # Choose a task to run
+    prereqs         # Install project tools
+    minikube        # Setup minikube
+    mysql-svc       # Forward mysql from service defined in env
+    dev             # SQLMesh ui for local dev
+    skaffold *args  # skaffold configured with env and minikube
+    mysqldump *args # mysqldump configured with same env as SQLMesh
+    mysql *args     # mysql configured with same env as SQLMesh
+    everestctl      # Install percona everest cli
+    everest         # Percona Everest webui to manage databases
 ```
 
 To get started, run `just everest` and use the web ui to create a database. Configure the database details in the `.env` file (refer [example.env](example.env)). Once configured you can run `just local-dev` to forward the mysql port and expose the sqlmesh ui.

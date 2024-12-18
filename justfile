@@ -4,15 +4,12 @@ set dotenv-load
 default:
   @just --choose
 
+
 # Install project tools
 prereqs:
   brew bundle install
   minikube config set memory no-limit
   minikube config set cpus no-limit
-
-# Build container images
-build: prereqs
-  skaffold build
 
 # Setup minikube
 minikube:
@@ -27,6 +24,11 @@ mysql-svc: minikube
 dev: mysql-svc
   @just mysql sqlmesh -e exit || just mysql -e 'create database sqlmesh; SET GLOBAL pxc_strict_mode=PERMISSIVE;'
   uv run sqlmesh ui
+
+# skaffold configured with env and minikube
+[positional-arguments]
+skaffold *args: minikube
+  skaffold "$@"
 
 # mysqldump configured with same env as SQLMesh
 [positional-arguments]

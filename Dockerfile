@@ -1,5 +1,9 @@
 FROM ghcr.io/astral-sh/uv:debian
 
+LABEL org.opencontainers.image.source=https://github.com/wagov-dtt/wa.gov.au_harvest-consultations
+LABEL org.opencontainers.image.description="Harvest consultations with sqlmesh"
+LABEL org.opencontainers.image.licenses=Apache-2.0
+
 # Copy the project into the image
 ADD . /app
 
