@@ -42,10 +42,9 @@ test: mysql-svc
 skaffold *args: minikube
   skaffold "$@"
 
-# mysqldump configured with same env as SQLMesh
-[positional-arguments]
-mysqldump *args: mysql-svc
-  mysqldump -uroot -h127.0.0.1 "$@"
+# Dump the sqlmesh database to logs/consultations.sql.gz
+dump-consultations: mysql-svc
+  mysqldump -uroot -h127.0.0.1 sqlmesh | gzip > logs/consultations.sql.gz
 
 # mysql configured with same env as SQLMesh
 [positional-arguments]

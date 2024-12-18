@@ -11,16 +11,17 @@ The `justfile` in this repository has most useful commands:
 ```bash
 $ just -l -u
 Available recipes:
-    default         # Choose a task to run
-    prereqs         # Install project tools
-    minikube        # Setup minikube
-    mysql-svc       # Forward mysql from service defined in env
-    dev             # SQLMesh ui for local dev
-    skaffold *args  # skaffold configured with env and minikube
-    mysqldump *args # mysqldump configured with same env as SQLMesh
-    mysql *args     # mysql configured with same env as SQLMesh
-    everestctl      # Install percona everest cli
-    everest         # Percona Everest webui to manage databases
+    default            # Choose a task to run
+    prereqs            # Install project tools
+    minikube           # Setup minikube
+    mysql-svc          # Forward mysql from service defined in env
+    dev                # SQLMesh ui for local dev
+    test               # Build and test container (run dev first to make sure db exists)
+    skaffold *args     # skaffold configured with env and minikube
+    dump-consultations # Dump the sqlmesh database to logs/consultations.sql.gz
+    mysql *args        # mysql configured with same env as SQLMesh
+    everestctl         # Install percona everest cli
+    everest            # Percona Everest webui to manage databases
 ```
 
 To get started, run `just everest` and use the web ui to create a database. Configure the database details in the `.env` file (refer [example.env](example.env)). Once configured you can run `just local-dev` to forward the mysql port and expose the sqlmesh ui.
@@ -28,14 +29,18 @@ To get started, run `just everest` and use the web ui to create a database. Conf
 To dump the `sqlmesh` database for validation/testing:
 
 ```bash
-just mysqldump sqlmesh | gzip > sqlmesh.sql.gz
+just mysqldump sqlmesh > sqlmesh.sql.gz
 ```
 
 ## Testing container with skaffold
 
 Configure secrets then run `skaffold dev` (which expects secrets created in cluster).
 
-## Container publish workflow
+## Using in production
+
+To run the packaged container in a production environment, it will need `SECRETS_YAML` and `MYSQL_DUCKDB_PATH` configured (refer to [duckdb mysql extension](https://duckdb.org/docs/extensions/mysql#configuration)). The remaining env vars in [example.env](example.env) are just to simplify local development.
+
+Current release is [v0.2.0-beta](https://github.com/wagov-dtt/wa.gov.au_harvest-consultations/releases/tag/v0.2.0-beta) which has a published [container image](https://github.com/wagov-dtt/wa.gov.au_harvest-consultations/pkgs/container/harvest-consultations/324752147?tag=0.2.0-beta) built for both `linux/amd64` and `linux/arm64` architectures from the [ghcr.io/astral-sh/uv:python3.12-bookworm-slim](https://docs.astral.sh/uv/guides/integration/docker/#available-images) image.
 
 ## Process Design
 
