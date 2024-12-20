@@ -29,7 +29,8 @@ To get started, run `just everest` and use the web ui to create a database. Conf
 To dump the `sqlmesh` database for validation/testing:
 
 ```bash
-just mysqldump sqlmesh > sqlmesh.sql.gz
+just dump-consultations
+# grab output from logs/consultations.sql.gz
 ```
 
 ## Testing container with skaffold
