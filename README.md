@@ -41,7 +41,7 @@ Configure secrets then run `skaffold dev` (which expects secrets created in clus
 
 To run the packaged container in a production environment, it will need `SECRETS_YAML` and `MYSQL_DUCKDB_PATH` configured (refer to [duckdb mysql extension](https://duckdb.org/docs/extensions/mysql#configuration)). The remaining env vars in [example.env](example.env) are just to simplify local development.
 
-Current release is [v0.2.0-beta](https://github.com/wagov-dtt/wa.gov.au_harvest-consultations/releases/tag/v0.2.0-beta) which has a published [container image](https://github.com/wagov-dtt/wa.gov.au_harvest-consultations/pkgs/container/harvest-consultations/324752147?tag=0.2.0-beta) built for both `linux/amd64` and `linux/arm64` architectures from the [ghcr.io/astral-sh/uv:python3.12-bookworm-slim](https://docs.astral.sh/uv/guides/integration/docker/#available-images) image.
+Current release is [v0.2.1-beta](https://github.com/wagov-dtt/wa.gov.au_harvest-consultations/releases/tag/v0.2.1-beta) which has a published [container image](https://github.com/wagov-dtt/wa.gov.au_harvest-consultations/pkgs/container/harvest-consultations) built for both `linux/amd64` and `linux/arm64` architectures from the [ghcr.io/astral-sh/uv:python3.12-bookworm-slim](https://docs.astral.sh/uv/guides/integration/docker/#available-images) image.
 
 ## Process Design
 
