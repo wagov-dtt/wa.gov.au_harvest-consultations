@@ -6,7 +6,7 @@ This document outlines an hourly process using SQLMesh to harvest data from exte
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/wagov-dtt/wa.gov.au_harvest-consultations)
 
 ## Developing locally
-The `justfile` in this repository has most useful commands:
+The `justfile` in this repository has most useful commands (run `just prereqs` and restart codespace/devcontainer before diving in to make sure all cli utilities are in place):
 
 ```bash
 $ just -l -u
@@ -24,7 +24,7 @@ Available recipes:
     everest            # Percona Everest webui to manage databases
 ```
 
-To get started, run `just everest` and use the web ui to create a database. Configure the database details in the `.env` file (refer [example.env](example.env)). Once configured you can run `just local-dev` to forward the mysql port and expose the sqlmesh ui.
+To get started, run `just everest` and use the web ui to create a database. Configure the database details in the `.env` file (refer [example.env](example.env)). Once configured you can run `just dev` to forward the mysql port and expose the sqlmesh ui.
 
 To dump the `sqlmesh` database for validation/testing:
 
@@ -53,7 +53,7 @@ Current release is [v0.2.0-beta](https://github.com/wagov-dtt/wa.gov.au_harvest-
 2. **Data Transformation**: SQLMesh processes the harvested data
    - [SQLMesh SQL Models](https://sqlmesh.readthedocs.io/en/stable/concepts/models/sql_models/)
    - Data cleaning and standardization
-   - Value translation based on mapping configuration
+   - Value translation in SQL views
    - Data clone from `duckdb` state engine to `mysql` target tables
 
 4. **Content Management**:

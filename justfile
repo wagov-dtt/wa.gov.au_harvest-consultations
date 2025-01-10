@@ -2,7 +2,7 @@ set dotenv-load
 
 # Choose a task to run
 default:
-  @just --choose
+  just --choose
 
 
 # Install project tools
@@ -13,7 +13,7 @@ prereqs:
 
 # Setup minikube
 minikube:
-  which k9s || @just prereqs
+  which k9s || just prereqs
   minikube status || minikube start
 
 # Forward mysql from service defined in env
@@ -22,14 +22,14 @@ mysql-svc: minikube
 
 # SQLMesh ui for local dev
 dev: mysql-svc
-  @just mysql sqlmesh -e exit || just mysql -e 'create database sqlmesh;'
-  @just mysql -e 'SET GLOBAL pxc_strict_mode=PERMISSIVE;'
+  just mysql sqlmesh -e exit || just mysql -e 'create database sqlmesh;'
+  just mysql -e 'SET GLOBAL pxc_strict_mode=PERMISSIVE;'
   uv run sqlmesh ui
 
 # Build and test container (run dev first to make sure db exists)
 test: mysql-svc
   docker build . -t harvest-consultations
-  @just mysql -e 'SET GLOBAL pxc_strict_mode=PERMISSIVE;'
+  just mysql -e 'SET GLOBAL pxc_strict_mode=PERMISSIVE;'
   @docker run --net=host \
     -e SECRETS_YAML='{{env('SECRETS_YAML')}}' \
     -e MYSQL_PWD='{{env('MYSQL_PWD')}}' \
@@ -59,7 +59,7 @@ everestctl:
 
 # Percona Everest webui to manage databases
 everest: minikube
-  which everestctl || @just everestctl
+  which everestctl || just everestctl
   everestctl accounts list || everestctl install --skip-wizard
   everestctl accounts set-password --username admin --new-password everest
   ss -ltpn | grep 8080 || kubectl port-forward svc/everest 8080:8080 -n everest-system &

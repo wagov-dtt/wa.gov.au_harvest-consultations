@@ -18,20 +18,6 @@ def load(config: dict) -> pd.DataFrame:
         for row in result:
             row.update(row.pop("attributes"))
             row["url"] = row["links"].pop("self")
-            row["agency"] = None
-            # Please refer to the `example.env` file in this repo to see an example config of agency mapping to attributes
-            for lookup in config.get("agencylookups", []):
-                # if a higher entry matched, break to avoid clobbering
-                if row["agency"] is not None:
-                    break
-                agency = lookup["agency"]
-                for key, value in lookup.items():
-                    # check each attribute if there is a substring match
-                    if str(row[key]).lower().find(str(value).lower()) > -1:
-                        # on match set agency and break
-                        row["agency"] = agency
-                        break
-
     except Exception as e:
         print(e)
     return pd.DataFrame(result)
@@ -47,10 +33,10 @@ def load(config: dict) -> pd.DataFrame:
         "description": "text",
         "visibility-mode": "text",
         "image-url": "text",
-        "agency": "text",
         "project-tag-list": "text[]",
         "view-count": "text",
-        "id": "text"
+        "id": "text",
+        "parent-id": "integer"
     }
 )
 def execute(context: ExecutionContext, start: datetime, end: datetime, execution_time: datetime, **kwargs: Any) -> pd.DataFrame:
