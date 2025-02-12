@@ -7,10 +7,10 @@ from sqlmesh import ExecutionContext, model
 # extract configs from env
 configs = yaml.safe_load(os.environ["SECRETS_YAML"]).get("citizenspace", [])
 
-def load(config: dict) -> pd.DataFrame:
+def load(url: str) -> pd.DataFrame:
     # Function to use a config to return a dataframe
     try:
-        result = requests.get(config["url"]).json()
+        result = requests.get(f"{url}/api/2.3/json_search_results?fields=extended").json()
     except Exception as e:
         print(e)
         result = []

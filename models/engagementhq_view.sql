@@ -1,15 +1,19 @@
 MODEL (
-  name mysay.view,
+  name engagementhq.view,
   kind VIEW
 );
 
 SELECT
-  'mysay' AS source,
+  'engagementhq' AS source,
   name,
   description,
   state AS status,
   ARRAY_TO_STRING("project-tag-list", ',') AS tags,
   CASE
+    WHEN url ILIKE 'https://engageagric.engagementhq.com/%'
+    THEN 'Department of Primary Industries and Regional Development'
+    WHEN url ILIKE 'https://haveyoursaywa.engagementhq.com/%'
+    THEN 'Department of Planning, Lands and Heritage'
     WHEN "parent-id" = '38135' OR tags ILIKE '%dot%'
     THEN 'Department of Transport'
     WHEN "parent-id" = '37726' OR tags ILIKE '%mrwa%' OR tags ILIKE '%main roads%'
@@ -28,6 +32,8 @@ SELECT
   url,
   "published-at"::DATE AS publishdate,
   NULL::DATE AS expirydate
-FROM mysay.api
+FROM engagementhq.api
 WHERE
   status ILIKE 'published' OR status ILIKE 'archived'
+
+-- TODO: Normalise published/archived to open/closed

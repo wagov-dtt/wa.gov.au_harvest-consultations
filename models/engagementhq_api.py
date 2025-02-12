@@ -1,20 +1,18 @@
 from datetime import datetime
 from typing import Any
 import pandas as pd
-import os, requests, yaml
+import os, re, requests, yaml
 from sqlmesh import ExecutionContext, model
 
 # extract configs from env
-configs = yaml.safe_load(os.environ["SECRETS_YAML"]).get("mysay", [])
+configs = yaml.safe_load(os.environ["SECRETS_YAML"]).get("engagementhq", [])
 
-def load(config: dict) -> pd.DataFrame:
+def load(url: str) -> pd.DataFrame:
     # Function to use a config to return a dataframe
-    url, username, password = config["url"], config["username"], config["password"]
     result = []
     try:
-        auth_token = requests.post(f"{url}/tokens", json={"data": {"attributes": {
-                               "login": username, "password": password}}}).json()['data']['attributes']['token']
-        result = requests.get(f"{url}/projects", params={"per_page": 10000}, headers={"Authorization": f"Bearer {auth_token}"}).json()["data"]
+        auth_token = re.findall(r'data-thunder="([^"]*)"', requests.get(url).text).pop()
+        result = requests.get(f"{url}/api/v2/projects", params={"per_page": 10000}, headers={"Authorization": f"Bearer {auth_token}"}).json()["data"]
         for row in result:
             row.update(row.pop("attributes"))
             row["url"] = row["links"].pop("self")
@@ -23,7 +21,7 @@ def load(config: dict) -> pd.DataFrame:
     return pd.DataFrame(result)
 
 @model(
-    "mysay.api",
+    "engagementhq.api",
     columns={
         "state": "text",
         "published-at": "text",
