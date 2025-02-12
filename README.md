@@ -24,7 +24,7 @@ Available recipes:
     everest            # Percona Everest webui to manage databases
 ```
 
-To get started, run `just everest` and use the web ui to create a database. Configure the database details in the `.env` file (refer [example.env](example.env)). Once configured you can run `just dev` to forward the mysql port and expose the sqlmesh ui.
+To get started, run `just everest` and use the web ui to create a database (for simplicity called `mysql01`). Configure the database details in the `.env` file (refer [example.env](example.env)). Once configured you can run `just dev` to forward the mysql port and expose the sqlmesh ui.
 
 To dump the `sqlmesh` database for validation/testing:
 

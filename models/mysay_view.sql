@@ -29,3 +29,5 @@ SELECT
   "published-at"::DATE AS publishdate,
   NULL::DATE AS expirydate
 FROM mysay.api
+WHERE
+  status ILIKE 'published' OR status ILIKE 'archived'

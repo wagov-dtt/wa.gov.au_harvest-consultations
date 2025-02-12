@@ -23,3 +23,5 @@ SELECT
   startdate::DATE AS publishdate,
   enddate::DATE AS expirydate
 FROM citizenspace.api
+WHERE
+  status ILIKE 'open' OR status ILIKE 'closed'
