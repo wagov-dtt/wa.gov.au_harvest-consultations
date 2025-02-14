@@ -17,7 +17,7 @@ FROM (
 WHERE
   status IN ('open', 'closed');
 
-CREATE OR REPLACE TABLE mysqldb.sqlmesh.consultations AS
+CREATE OR REPLACE TABLE @OUTPUT_SCHEMA.@OUTPUT_DB.@OUTPUT_TABLE AS
 SELECT
   *
 FROM consultations.tbl

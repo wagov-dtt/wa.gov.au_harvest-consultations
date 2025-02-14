@@ -1,3 +1,5 @@
+# All the variables in this file can be overridden, see https://sqlmesh.readthedocs.io/en/stable/guides/configuration/#overrides
+
 gateways:
   local:
     connection:
@@ -10,6 +12,10 @@ gateways:
           type: mysql
           path: {{ env_var('MYSQL_DUCKDB_PATH') }}
 
+variables:
+  output_db: sqlmesh
+  output_table: consultations
+  output_schema: mysqldb
 
 default_gateway: local
 

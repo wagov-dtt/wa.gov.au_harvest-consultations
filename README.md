@@ -39,7 +39,23 @@ Configure secrets then run `skaffold dev` (which expects secrets created in clus
 
 ## Using in production
 
-To run the packaged container in a production environment, it will need `SECRETS_YAML` and `MYSQL_DUCKDB_PATH` configured (refer to [duckdb mysql extension](https://duckdb.org/docs/extensions/mysql#configuration)). The remaining env vars in [example.env](example.env) are just to simplify local development.
+To run the packaged container in a production environment, it will need `SECRETS_YAML` and `MYSQL_DUCKDB_PATH` configured (refer to [duckdb mysql extension](https://duckdb.org/docs/extensions/mysql#configuration)). The remaining env vars in [example.env](example.env) are just to simplify local development. The below example also includes adjusting the output database/table (note that the database in the `MYSQL_DUCKDB_PATH` connection and the `SQLMESH__VARIABLES__OUTPUT_DB` should match.
+
+```bash
+# .env example
+SECRETS_YAML='engagementhq:
+  - "https://engagementhq-site1.example.domain"
+  - "https://engagementhq-site2.example.domain"
+citizenspace:
+  - "https://citizenspace-site1.example.domain"
+  - "https://citizenspace-site2.example.domain"'
+MYSQL_DUCKDB_PATH='host=... user=... database=customdb'
+MYSQL_PWD='...'
+SQLMESH__VARIABLES__OUTPUT_DB="customdb"
+SQLMESH__VARIABLES__OUTPUT_TABLE="sqlmesh_consultations_tbl"
+```
+
+For further runtime customisation, see [environment overrides](https://sqlmesh.readthedocs.io/en/stable/guides/configuration/#overrides) in the [sqlmesh configuration guide](https://sqlmesh.readthedocs.io/en/stable/guides/configuration/) and this projects [config.yaml](./config.yaml).
 
 Current release is [v0.2.1-beta](https://github.com/wagov-dtt/wa.gov.au_harvest-consultations/releases/tag/v0.2.1-beta) which has a published [container image](https://github.com/wagov-dtt/wa.gov.au_harvest-consultations/pkgs/container/harvest-consultations) built for both `linux/amd64` and `linux/arm64` architectures from the [ghcr.io/astral-sh/uv:python3.12-bookworm-slim](https://docs.astral.sh/uv/guides/integration/docker/#available-images) image.
 
