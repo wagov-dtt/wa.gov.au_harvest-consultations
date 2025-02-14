@@ -44,8 +44,7 @@ skaffold *args: minikube
 
 # Dump the sqlmesh database to logs/consultations.sql.gz
 dump-consultations: mysql-svc
-  mkdir logs
-  mysqldump -uroot -h127.0.0.1 sqlmesh | gzip > logs/consultations.sql.gz
+  mkdir logs; mysqldump -uroot -h127.0.0.1 --set-gtid-purged=OFF --single-transaction sqlmesh | gzip > logs/consultations.sql.gz
 
 # mysql configured with same env as SQLMesh
 [positional-arguments]
