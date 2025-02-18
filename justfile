@@ -64,3 +64,10 @@ everest: minikube
   everestctl accounts set-password --username admin --new-password everest
   ss -ltpn | grep 8080 || kubectl port-forward svc/everest 8080:8080 -n everest-system &
   @echo "Manage databases: http://localhost:8080 (login admin/everest)"
+
+# Create an eks cluster to deploy scheduled task too
+setup-eks ARGS="--enable-auto-mode" CLUSTER="auto01":  
+  which aws || just prereqs
+  aws sts get-caller-identity || echo please run '"aws configure sso"' and add AWS_PROFILE/AWS_REGION to your .env file # make sure aws logged in
+  eksctl create cluster --name={{CLUSTER}} {{ARGS}}
+  eksctl utils update-cluster-logging --enable-types=all--region=$AWS_REGION --cluster={{CLUSTER}}
