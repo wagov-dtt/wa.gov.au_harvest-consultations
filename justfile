@@ -14,7 +14,7 @@ prereqs:
 # Setup minikube
 minikube:
   which k9s || just prereqs
-  minikube status || minikube start
+  kubectl get nodes || minikube status || minikube start # if kube configured use that cluster, otherwise start minikube
 
 # Forward mysql from service defined in env
 mysql-svc: minikube
@@ -65,9 +65,20 @@ everest: minikube
   ss -ltpn | grep 8080 || kubectl port-forward svc/everest 8080:8080 -n everest-system &
   @echo "Manage databases: http://localhost:8080 (login admin/everest)"
 
-# Create an eks cluster to deploy scheduled task too
-setup-eks ARGS="--enable-auto-mode" CLUSTER="auto01":  
+export CLUSTER := env_var_or_default("CLUSTER", "auto01")
+
+# Create an eks cluster for testing
+setup-eks:  
   which aws || just prereqs
   aws sts get-caller-identity || echo please run '"aws configure sso"' and add AWS_PROFILE/AWS_REGION to your .env file # make sure aws logged in
-  eksctl create cluster --name={{CLUSTER}} {{ARGS}}
-  eksctl utils update-cluster-logging --enable-types=all--region=$AWS_REGION --cluster={{CLUSTER}}
+  cat eks/eksctl-cluster-template.yaml | envsubst | eksctl create cluster -f - || true # default auto cluster
+  cat eks/eksctl-cluster-template.yaml | envsubst | eksctl update addon -f - || true
+  eksctl utils write-kubeconfig --cluster {{CLUSTER}}
+  kubectl apply -f eks/auto-class-manifests.yaml # default storage/alb classes
+
+# Deploy scheduled task to ecs with fargate, needs subnetids defined (comma separated)
+schedule-with-ecs SUBNETIDS STACKNAME="harvest-consultations":
+  aws ecs put-account-setting --name containerInsights --value enhanced
+  aws cloudformation deploy --template-file cloudformation/ecs-task.yaml --capabilities CAPABILITY_NAMED_IAM \
+    --stack-name {{STACKNAME}} --parameter-overrides SubnetIds={{SUBNETIDS}}
+

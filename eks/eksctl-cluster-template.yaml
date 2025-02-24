@@ -1,0 +1,17 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: ${CLUSTER}
+  region: ${AWS_REGION}
+  version: "1.32"
+
+autoModeConfig:
+  enabled: true
+
+addonsConfig:
+  autoApplyPodIdentityAssociations: true
+
+addons:
+- name: snapshot-controller
+- name: amazon-cloudwatch-observability
