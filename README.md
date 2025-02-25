@@ -55,6 +55,8 @@ SQLMESH__VARIABLES__OUTPUT_DB="customdb"
 SQLMESH__VARIABLES__OUTPUT_TABLE="sqlmesh_consultations_tbl"
 ```
 
+The justfile with this repository includes a default configuration that can be used with `just setup-eks` and then `just schedule-with-eks` which will create an [AWS EKS Auto](https://docs.aws.amazon.com/eks/latest/userguide/quickstart.html) cluster, then schedule a job and database admin container in the `harvest-consultations` namespace. Note that secrets will also be pulled from local env vars and saved in the cluster (which will be using KMS encrypted sealed secrets if setup as above). Reviewing the [justfile](justfile) and the [eks](eks) manifest directory should be enough to configure for specific use cases (e.g. [Use existing VPC](https://eksctl.io/usage/vpc-configuration/#use-existing-vpc-other-custom-configuration) and customising security groups / NAT gateways).
+
 For further runtime customisation, see [environment overrides](https://sqlmesh.readthedocs.io/en/stable/guides/configuration/#overrides) in the [sqlmesh configuration guide](https://sqlmesh.readthedocs.io/en/stable/guides/configuration/) and this projects [config.yaml](./config.yaml).
 
 Current release is [v0.2.1-beta](https://github.com/wagov-dtt/wa.gov.au_harvest-consultations/releases/tag/v0.2.1-beta) which has a published [container image](https://github.com/wagov-dtt/wa.gov.au_harvest-consultations/pkgs/container/harvest-consultations) built for both `linux/amd64` and `linux/arm64` architectures from the [ghcr.io/astral-sh/uv:python3.12-bookworm-slim](https://docs.astral.sh/uv/guides/integration/docker/#available-images) image.

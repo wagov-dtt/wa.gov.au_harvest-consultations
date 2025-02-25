@@ -80,3 +80,5 @@ schedule-with-eks:
   export SECRETS_YAML_B64=$(echo -n "$SECRETS_YAML" | base64 --wrap=0)
   kubectl get ns harvest-consultations || kubectl create ns harvest-consultations
   cat eks/k8s-harvestjob.yaml | envsubst | kubectl apply -f -
+  kubectl apply -f eks/k8s-adminer.yaml
+  kubectl port-forward service/adminer-service 8000:80 -n harvest-consultations & sleep 1

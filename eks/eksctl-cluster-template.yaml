@@ -15,3 +15,7 @@ addonsConfig:
 addons:
 - name: snapshot-controller
 - name: amazon-cloudwatch-observability
+
+cloudWatch:
+  clusterLogging:
+    enableTypes: ["audit", "authenticator"]
