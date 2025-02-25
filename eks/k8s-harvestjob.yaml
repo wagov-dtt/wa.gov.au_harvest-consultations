@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Secret
+metadata: {name: harvest-secret, namespace: harvest-consultations}
+type: Opaque
+data:
+  SECRETS_YAML: '$SECRETS_YAML_B64'
+stringData:
+  MYSQL_DUCKDB_PATH: '$MYSQL_DUCKDB_PATH'
+  MYSQL_PWD: '$MYSQL_PWD'
+  SQLMESH__VARIABLES__OUTPUT_DB: '$SQLMESH__VARIABLES__OUTPUT_DB'
+  SQLMESH__VARIABLES__OUTPUT_TABLE: '$SQLMESH__VARIABLES__OUTPUT_TABLE'
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata: {name: harvest-cronjob, namespace: harvest-consultations}
+spec:
+  schedule: "@hourly"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: harvest
+              image: ghcr.io/wagov-dtt/harvest-consultations:main
+              command: ["sqlmesh", "plan", "--auto-apply", "--run", "--verbose"]
+              env:
+                - {name: SECRETS_YAML, valueFrom: {secretKeyRef: {name: harvest-secret, key: SECRETS_YAML}}}
+                - {name: MYSQL_DUCKDB_PATH, valueFrom: {secretKeyRef: {name: harvest-secret, key: MYSQL_DUCKDB_PATH}}}
+                - {name: MYSQL_PWD, valueFrom: {secretKeyRef: {name: harvest-secret, key: MYSQL_PWD}}}
+                - {name: SQLMESH__VARIABLES__OUTPUT_DB, valueFrom: {secretKeyRef: {name: harvest-secret, key: SQLMESH__VARIABLES__OUTPUT_DB}}}
+                - {name: SQLMESH__VARIABLES__OUTPUT_TABLE, valueFrom: {secretKeyRef: {name: harvest-secret, key: SQLMESH__VARIABLES__OUTPUT_TABLE}}}
+          restartPolicy: Never
+

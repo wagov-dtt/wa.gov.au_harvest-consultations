@@ -37,11 +37,6 @@ test: mysql-svc
     harvest-consultations \
     sqlmesh plan --auto-apply --run --verbose
 
-# skaffold configured with env and minikube
-[positional-arguments]
-skaffold *args: minikube
-  skaffold "$@"
-
 # Dump the sqlmesh database to logs/consultations.sql.gz
 dump-consultations: mysql-svc
   mkdir logs; mysqldump -uroot -h127.0.0.1 --set-gtid-purged=OFF --single-transaction sqlmesh | gzip > logs/consultations.sql.gz
@@ -65,20 +60,23 @@ everest: minikube
   ss -ltpn | grep 8080 || kubectl port-forward svc/everest 8080:8080 -n everest-system &
   @echo "Manage databases: http://localhost:8080 (login admin/everest)"
 
+awslogin:
+  which aws || just prereqs
+  aws sts get-caller-identity > /dev/null || aws sso login --use-device-code || echo please run '"aws configure sso"' and add AWS_PROFILE/AWS_REGION to your .env file # make sure aws logged in
+
 export CLUSTER := env_var_or_default("CLUSTER", "auto01")
 
 # Create an eks cluster for testing
-setup-eks:  
-  which aws || just prereqs
-  aws sts get-caller-identity || echo please run '"aws configure sso"' and add AWS_PROFILE/AWS_REGION to your .env file # make sure aws logged in
-  cat eks/eksctl-cluster-template.yaml | envsubst | eksctl create cluster -f - || true # default auto cluster
-  cat eks/eksctl-cluster-template.yaml | envsubst | eksctl update addon -f - || true
+setup-eks: awslogin
+  eksctl get cluster --name {{CLUSTER}} > /dev/null || cat eks/eksctl-cluster-template.yaml | envsubst | eksctl create cluster -f - # default auto cluster
+  aws kms describe-key --key-id alias/eks/secrets > /dev/null || aws kms create-alias --alias-name alias/eks/secrets --target-key-id $(aws kms create-key --query 'KeyMetadata.KeyId' --output text)
+  eksctl utils enable-secrets-encryption --cluster {{CLUSTER}} --key-arn $(aws kms describe-key --key-id alias/eks/secrets --query 'KeyMetadata.Arn' --output text) --region $AWS_REGION # enable kms secrets
   eksctl utils write-kubeconfig --cluster {{CLUSTER}}
   kubectl apply -f eks/auto-class-manifests.yaml # default storage/alb classes
 
-# Deploy scheduled task to ecs with fargate, needs subnetids defined (comma separated)
-schedule-with-ecs SUBNETIDS STACKNAME="harvest-consultations":
-  aws ecs put-account-setting --name containerInsights --value enhanced
-  aws cloudformation deploy --template-file cloudformation/ecs-task.yaml --capabilities CAPABILITY_NAMED_IAM \
-    --stack-name {{STACKNAME}} --parameter-overrides SubnetIds={{SUBNETIDS}}
-
+# Deploy scheduled task to eks with secrets
+schedule-with-eks:
+  #!/usr/bin/env bash
+  export SECRETS_YAML_B64=$(echo -n "$SECRETS_YAML" | base64 --wrap=0)
+  kubectl get ns harvest-consultations || kubectl create ns harvest-consultations
+  cat eks/k8s-harvestjob.yaml | envsubst | kubectl apply -f -
