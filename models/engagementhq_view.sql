@@ -7,14 +7,16 @@ SELECT
   'engagementhq' AS source,
   name,
   description,
+  ARRAY_TO_STRING("project-tag-list", ',') AS tags,
   CASE
+    WHEN tags ILIKE '%close%'
+    THEN 'closed'
     WHEN state ILIKE 'published'
     THEN 'open'
     WHEN state ILIKE 'archived'
     THEN 'closed'
     ELSE LOWER(state)
   END AS status,
-  ARRAY_TO_STRING("project-tag-list", ',') AS tags,
   CASE
     WHEN url ILIKE 'https://engageagric.engagementhq.com/%'
     THEN 'Department of Primary Industries and Regional Development'
