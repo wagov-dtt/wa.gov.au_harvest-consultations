@@ -54,7 +54,7 @@ The justfile with this repository includes a default configuration that can be u
 
 For further runtime customisation, see [environment overrides](https://sqlmesh.readthedocs.io/en/stable/guides/configuration/#overrides) in the [sqlmesh configuration guide](https://sqlmesh.readthedocs.io/en/stable/guides/configuration/) and this projects [config.yaml](./config.yaml).
 
-Current release is [v0.2.1-beta](https://github.com/wagov-dtt/wa.gov.au_harvest-consultations/releases/tag/v0.2.1-beta) which has a published [container image](https://github.com/wagov-dtt/wa.gov.au_harvest-consultations/pkgs/container/harvest-consultations) built for both `linux/amd64` and `linux/arm64` architectures from the [ghcr.io/astral-sh/uv:python3.12-bookworm-slim](https://docs.astral.sh/uv/guides/integration/docker/#available-images) image.
+Current release is [v0.2.3](https://github.com/wagov-dtt/wa.gov.au_harvest-consultations/releases/tag/v0.2.3) which has a published [container image](https://github.com/wagov-dtt/wa.gov.au_harvest-consultations/pkgs/container/harvest-consultations/376968907?tag=0.2.3) built for both `linux/amd64` and `linux/arm64` architectures from the [ghcr.io/astral-sh/uv:python3.12-bookworm-slim](https://docs.astral.sh/uv/guides/integration/docker/#available-images) image.
 
 ## Process Design
 
