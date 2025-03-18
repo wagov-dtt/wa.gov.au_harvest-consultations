@@ -4,7 +4,6 @@ set dotenv-load
 default:
   just --choose
 
-
 # Install project tools
 prereqs:
   brew bundle install
@@ -16,20 +15,18 @@ minikube:
   which k9s || just prereqs
   kubectl get nodes || minikube status || minikube start # if kube configured use that cluster, otherwise start minikube
 
-# Forward mysql from service defined in env
+# Forward mysql from k8s cluster
 mysql-svc: minikube
-  ss -ltpn | grep 3306 || kubectl port-forward $KUBECTL_FORWARD_MYSQL 3306:3306 -n everest & sleep 1
+  kubectl apply -k kustomize/minikube
+  ss -ltpn | grep 3306 || kubectl port-forward service/mysqldb 3306:3306 -n harvest-consultations & sleep 1
 
 # SQLMesh ui for local dev
 dev: mysql-svc
-  just mysql sqlmesh -e exit || just mysql -e 'create database sqlmesh;'
-  just mysql -e 'SET GLOBAL pxc_strict_mode=PERMISSIVE;'
   uv run sqlmesh ui
 
-# Build and test container (run dev first to make sure db exists)
+# Build and test container
 test: mysql-svc
   docker build . -t harvest-consultations
-  just mysql -e 'SET GLOBAL pxc_strict_mode=PERMISSIVE;'
   @docker run --net=host \
     -e SECRETS_YAML='{{env('SECRETS_YAML')}}' \
     -e MYSQL_PWD='{{env('MYSQL_PWD')}}' \
@@ -37,29 +34,11 @@ test: mysql-svc
     harvest-consultations \
     sqlmesh plan --auto-apply --run --verbose
 
-# Dump the sqlmesh database to logs/consultations.sql.gz
+# Dump the sqlmesh database to logs/consultations.sql.gz (run test to create/populate db first)
 dump-consultations: mysql-svc
   mkdir logs; mysqldump -uroot -h127.0.0.1 --set-gtid-purged=OFF --single-transaction sqlmesh | gzip > logs/consultations.sql.gz
 
-# mysql configured with same env as SQLMesh
-[positional-arguments]
-mysql *args: mysql-svc
-  mysql -uroot -h127.0.0.1 "$@"
-
-# Install percona everest cli
-everestctl:
-  curl -sSL -o everestctl-linux-amd64 https://github.com/percona/everest/releases/latest/download/everestctl-linux-amd64
-  sudo install -m 555 everestctl-linux-amd64 /usr/local/bin/everestctl
-  rm everestctl-linux-amd64
-
-# Percona Everest webui to manage databases
-everest: minikube
-  which everestctl || just everestctl
-  everestctl accounts list || everestctl install --skip-wizard
-  everestctl accounts set-password --username admin --new-password everest
-  ss -ltpn | grep 8080 || kubectl port-forward svc/everest 8080:8080 -n everest-system &
-  @echo "Manage databases: http://localhost:8080 (login admin/everest)"
-
+# use aws sso login profiles
 awslogin:
   which aws || just prereqs
   aws sts get-caller-identity > /dev/null || aws sso login --use-device-code || echo please run '"aws configure sso"' and add AWS_PROFILE/AWS_REGION to your .env file # make sure aws logged in

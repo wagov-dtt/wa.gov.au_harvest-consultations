@@ -1,8 +1,5 @@
 tap "homebrew/bundle"
-brew "skaffold"
 brew "fzf"
 brew "uv"
 brew "k9s"
 brew "mysql"
-brew "awscli"
-brew "eksctl"

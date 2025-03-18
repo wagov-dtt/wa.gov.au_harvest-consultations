@@ -1,0 +1,19 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: harvest-cronjob
+spec:
+  schedule: "@hourly"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: harvest
+              image: ghcr.io/wagov-dtt/harvest-consultations:main
+              command: ["sqlmesh", "plan", "--auto-apply", "--run", "--verbose"]
+              envFrom:
+                - secretRef:
+                    name: harvest-secret
+          restartPolicy: Never
+
