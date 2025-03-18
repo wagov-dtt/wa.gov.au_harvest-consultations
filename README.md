@@ -14,17 +14,16 @@ Available recipes:
     default            # Choose a task to run
     prereqs            # Install project tools
     minikube           # Setup minikube
-    mysql-svc          # Forward mysql from service defined in env
+    mysql-svc          # Forward mysql from k8s cluster
     dev                # SQLMesh ui for local dev
-    test               # Build and test container (run dev first to make sure db exists)
-    skaffold *args     # skaffold configured with env and minikube
-    dump-consultations # Dump the sqlmesh database to logs/consultations.sql.gz
-    mysql *args        # mysql configured with same env as SQLMesh
-    everestctl         # Install percona everest cli
-    everest            # Percona Everest webui to manage databases
+    test               # Build and test container
+    dump-consultations # Dump the sqlmesh database to logs/consultations.sql.gz (run test to create/populate db first)
+    awslogin           # use aws sso login profiles
+    setup-eks          # Create an eks cluster for testing
+    schedule-with-eks  # Deploy scheduled task to eks with secrets
 ```
 
-To get started, run `just everest` and use the web ui to create a database (for simplicity called `mysql01`). Configure the database details in the `.env` file (refer [example.env](example.env)). Once configured you can run `just dev` to forward the mysql port and expose the sqlmesh ui.
+To get started, run `just dev` to create a minikube cluster, forward the mysql service and expose the sqlmesh ui.
 
 To dump the `sqlmesh` database for validation/testing:
 
@@ -32,10 +31,6 @@ To dump the `sqlmesh` database for validation/testing:
 just dump-consultations
 # grab output from logs/consultations.sql.gz
 ```
-
-## Testing container with skaffold
-
-Configure secrets then run `skaffold dev` (which expects secrets created in cluster).
 
 ## Using in production
 
