@@ -12,10 +12,20 @@ spec:
             - name: harvest
               image: ghcr.io/wagov-dtt/harvest-consultations:dev
               imagePullPolicy: IfNotPresent
-              command: ["sqlmesh", "plan", "--auto-apply", "--run", "--verbose", "--log-to-stdout"]
+              command: ["sqlmesh", "plan", "--auto-apply", "--run", "--verbose"]
               volumeMounts:
                 - mountPath: /app/logs
-                  name: logs
+                  name: ephemeral
+                  subPath: logs
+                - mountPath: /app/.cache
+                  name: ephemeral
+                  subPath: cache
+                - mountPath: /home/appuser/.sqlmesh
+                  name: ephemeral
+                  subPath: appuser.sqlmesh
+                - mountPath: /home/appuser/.duckdb
+                  name: ephemeral
+                  subPath: appuser.duckdb
               envFrom:
                 - secretRef:
                     name: harvest-secret
@@ -25,6 +35,6 @@ spec:
                 readOnlyRootFilesystem: true
           restartPolicy: Never
           volumes:
-              - name: logs
-                emptyDir: {}
+            - name: ephemeral
+              emptyDir: {}
 

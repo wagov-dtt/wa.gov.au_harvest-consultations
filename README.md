@@ -28,7 +28,9 @@ To get started, run `just dev` to create a minikube cluster, forward the mysql s
 To dump the `sqlmesh` database for validation/testing:
 
 ```bash
-just dump-consultations
+just clean # This tears down the kubernetes namespace, including local db
+just test # Builds and pushes local docker image into minikube, then runs the job once off (and schedules for hourly runs)
+just dump-consultations # Exports current database from minikube
 # grab output from logs/consultations.sql.gz
 ```
 
@@ -49,20 +51,20 @@ The justfile with this repository includes a default configuration that can be u
 
 For further runtime customisation, see [environment overrides](https://sqlmesh.readthedocs.io/en/stable/guides/configuration/#overrides) in the [sqlmesh configuration guide](https://sqlmesh.readthedocs.io/en/stable/guides/configuration/) and this projects [config.yaml](./config.yaml).
 
-Current release is [v0.2.3](https://github.com/wagov-dtt/wa.gov.au_harvest-consultations/releases/tag/v0.2.3) which has a published [container image](https://github.com/wagov-dtt/wa.gov.au_harvest-consultations/pkgs/container/harvest-consultations/376968907?tag=0.2.3) built for both `linux/amd64` and `linux/arm64` architectures from the [ghcr.io/astral-sh/uv:python3.12-bookworm-slim](https://docs.astral.sh/uv/guides/integration/docker/#available-images) image.
+Current release is [v0.3.1](https://github.com/wagov-dtt/wa.gov.au_harvest-consultations/releases/tag/v0.3.1) which has a published [container image](https://github.com/wagov-dtt/wa.gov.au_harvest-consultations/pkgs/container/harvest-consultations/376968907?tag=0.3.1) built for both `linux/amd64` and `linux/arm64` architectures from the [ghcr.io/astral-sh/uv:python3.13-bookworm-slim](https://docs.astral.sh/uv/guides/integration/docker/#available-images) image.
 
 ## Process Design
 
 1. **Hourly Data Harvesting**: SQLMesh connects to and harvests data from external REST APIs
    - [SQLMesh Python Models](https://sqlmesh.readthedocs.io/en/stable/concepts/models/python_models/)
    - Configurable API endpoints and authentication
-   - Runs every hour via scheduled task
+   - Runs every hour via kubernetes [CronJob](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)
 
 2. **Data Transformation**: SQLMesh processes the harvested data
    - [SQLMesh SQL Models](https://sqlmesh.readthedocs.io/en/stable/concepts/models/sql_models/)
    - Data cleaning and standardization
    - Value translation in SQL views
-   - Data clone from `duckdb` state engine to `mysql` target tables
+   - Data clone from `duckdb` state engine to `mysql` target tables using [DuckDB MySQL Extension](https://duckdb.org/docs/stable/extensions/mysql.html)
 
 4. **Content Management**:
    - Read-only imports of external content
@@ -71,4 +73,3 @@ Current release is [v0.2.3](https://github.com/wagov-dtt/wa.gov.au_harvest-consu
 ## Notes on Development
 For detailed implementation guidance, refer to:
 - [SQLMesh Documentation](https://sqlmesh.com/docs/)
-- [Drupal Views Documentation](https://www.drupal.org/docs/user_guide/en/views-chapter.html)
