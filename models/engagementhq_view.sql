@@ -18,7 +18,7 @@ SELECT
     ELSE LOWER(state)
   END AS status,
   CASE
-    WHEN url ILIKE 'https://engageagric.engagementhq.com/%'
+    WHEN url ILIKE 'https://engageagric.engagementhq.com/%' OR url ILIKE 'https://yoursay.dpird.wa.gov.au/%'
     THEN 'Department of Primary Industries and Regional Development'
     WHEN url ILIKE 'https://haveyoursaywa.engagementhq.com/%'
     THEN 'Department of Planning, Lands and Heritage'

@@ -1,5 +1,7 @@
 set dotenv-load
 
+ns := "harvest-consultations"
+
 # Choose a task to run
 default:
   just --choose
@@ -10,15 +12,24 @@ prereqs:
   minikube config set memory no-limit
   minikube config set cpus no-limit
 
+# Show local/env secrets for injecting into other tools
+@show-secrets:
+  jq -n 'env | {HARVEST_PORTALS, MYSQL_PWD, MYSQL_DUCKDB_PATH, SQLMESH__VARIABLES__OUTPUT_DB, SQLMESH__VARIABLES__OUTPUT_TABLE}'
+
 # Setup minikube
 minikube:
   which k9s || just prereqs
   kubectl get nodes || minikube status || minikube start # if kube configured use that cluster, otherwise start minikube
 
+# Configures harvest-secret using kubectl
+install-harvest-secret:
+  cat kustomize/secrets-template.yaml | NAME=harvest-secret SECRET_JSON=$(just show-secrets) envsubst | kubectl apply -n {{ns}} -f -
+
 # Forward mysql from k8s cluster
 mysql-svc: minikube
   kubectl apply -k kustomize/minikube
-  ss -ltpn | grep 3306 || kubectl port-forward service/mysqldb 3306:3306 -n harvest-consultations & sleep 1
+  just install-harvest-secret
+  ss -ltpn | grep 3306 || kubectl port-forward service/mysqldb 3306:3306 -n {{ns}} & sleep 1
 
 # SQLMesh ui for local dev
 dev: mysql-svc
@@ -26,17 +37,13 @@ dev: mysql-svc
 
 # Build and test container
 test: mysql-svc
-  docker build . -t harvest-consultations
-  @docker run --net=host \
-    -e SECRETS_YAML='{{env('SECRETS_YAML')}}' \
-    -e MYSQL_PWD='{{env('MYSQL_PWD')}}' \
-    -e MYSQL_DUCKDB_PATH='{{env('MYSQL_DUCKDB_PATH')}}' \
-    harvest-consultations \
-    sqlmesh plan --auto-apply --run --verbose
+  minikube image build -t ghcr.io/wagov-dtt/harvest-consultations:dev .
+  kubectl delete job test -n {{ns}} --ignore-not-found
+  kubectl create job test --from cronjob/harvest-cronjob -n {{ns}}
 
 # Dump the sqlmesh database to logs/consultations.sql.gz (run test to create/populate db first)
 dump-consultations: mysql-svc
-  mkdir logs; mysqldump -uroot -h127.0.0.1 --set-gtid-purged=OFF --single-transaction sqlmesh | gzip > logs/consultations.sql.gz
+  mkdir logs; kubectl exec -n {{ns}} percona-mysql-0 -- mysqldump -uroot --password=$MYSQL_PWD --set-gtid-purged=OFF --single-transaction sqlmesh | gzip > logs/consultations.sql.gz
 
 # use aws sso login profiles
 awslogin:
@@ -57,7 +64,7 @@ setup-eks: awslogin
 schedule-with-eks:
   #!/usr/bin/env bash
   export SECRETS_YAML_B64=$(echo -n "$SECRETS_YAML" | base64 --wrap=0)
-  kubectl get ns harvest-consultations || kubectl create ns harvest-consultations
+  kubectl get ns {{ns}} || kubectl create ns {{ns}}
   cat eks/k8s-harvestjob.yaml | envsubst | kubectl apply -f -
   kubectl apply -f eks/k8s-adminer.yaml
-  kubectl port-forward service/adminer-service 8000:80 -n harvest-consultations & sleep 1
+  kubectl port-forward service/adminer-service 8000:80 -n {{ns}} & sleep 1
