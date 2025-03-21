@@ -12,6 +12,9 @@ prereqs:
   minikube config set memory no-limit
   minikube config set cpus no-limit
 
+clean:
+  kubectl delete ns {{ns}}
+
 # Show local/env secrets for injecting into other tools
 @show-secrets:
   jq -n 'env | {HARVEST_PORTALS, MYSQL_PWD, MYSQL_DUCKDB_PATH, SQLMESH__VARIABLES__OUTPUT_DB, SQLMESH__VARIABLES__OUTPUT_TABLE}'
@@ -43,7 +46,7 @@ test: mysql-svc
 
 # Dump the sqlmesh database to logs/consultations.sql.gz (run test to create/populate db first)
 dump-consultations: mysql-svc
-  mkdir logs; kubectl exec -n {{ns}} percona-mysql-0 -- mysqldump -uroot --password=$MYSQL_PWD --set-gtid-purged=OFF --single-transaction sqlmesh | gzip > logs/consultations.sql.gz
+  mkdir logs; kubectl exec -n {{ns}} percona-mysql-0 -- mysqldump -uroot --password=$MYSQL_PWD --compact --single-transaction --no-create-info sqlmesh | gzip > logs/consultations.sql.gz
 
 # use aws sso login profiles
 awslogin:
