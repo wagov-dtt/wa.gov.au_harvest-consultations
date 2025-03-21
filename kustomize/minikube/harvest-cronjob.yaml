@@ -12,9 +12,19 @@ spec:
             - name: harvest
               image: ghcr.io/wagov-dtt/harvest-consultations:dev
               imagePullPolicy: IfNotPresent
-              command: ["sqlmesh", "plan", "--auto-apply", "--run", "--verbose"]
+              command: ["sqlmesh", "plan", "--auto-apply", "--run", "--verbose", "--log-to-stdout"]
+              volumeMounts:
+                - mountPath: /app/logs
+                  name: logs
               envFrom:
                 - secretRef:
                     name: harvest-secret
+              securityContext:
+                runAsNonRoot: true
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
           restartPolicy: Never
+          volumes:
+              - name: logs
+                emptyDir: {}
 
