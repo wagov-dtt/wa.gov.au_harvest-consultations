@@ -10,7 +10,8 @@ spec:
         spec:
           containers:
             - name: harvest
-              image: ghcr.io/wagov-dtt/harvest-consultations:main
+              image: ghcr.io/wagov-dtt/harvest-consultations:dev
+              imagePullPolicy: IfNotPresent
               command: ["sqlmesh", "plan", "--auto-apply", "--run", "--verbose"]
               envFrom:
                 - secretRef:

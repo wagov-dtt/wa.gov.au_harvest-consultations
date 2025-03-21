@@ -1,11 +1,11 @@
 from datetime import datetime
 from typing import Any
 import pandas as pd
-import os, requests, yaml
+import os, requests, json
 from sqlmesh import ExecutionContext, model
 
 # extract configs from env
-configs = yaml.safe_load(os.environ["SECRETS_YAML"]).get("citizenspace", [])
+configs = json.loads(os.environ["HARVEST_PORTALS"]).get("citizenspace", [])
 
 def load(url: str) -> pd.DataFrame:
     # Function to use a config to return a dataframe

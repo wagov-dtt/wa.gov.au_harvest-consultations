@@ -34,20 +34,15 @@ just dump-consultations
 
 ## Using in production
 
-To run the packaged container in a production environment, it will need `SECRETS_YAML` and `MYSQL_DUCKDB_PATH` configured (refer to [duckdb mysql extension](https://duckdb.org/docs/extensions/mysql#configuration)). The remaining env vars in [example.env](example.env) are just to simplify local development. The below example also includes adjusting the output database/table (note that the database in the `MYSQL_DUCKDB_PATH` connection and the `SQLMESH__VARIABLES__OUTPUT_DB` should match.
+To run the packaged container in a production environment, it will need `HARVEST_PORTALS` and `MYSQL_DUCKDB_PATH` configured (refer to [duckdb mysql extension](https://duckdb.org/docs/extensions/mysql#configuration)). The remaining env vars in [example.env](example.env) are just to simplify local development. The below example also includes adjusting the output database/table (note that the database in the `MYSQL_DUCKDB_PATH` connection and the `SQLMESH__VARIABLES__OUTPUT_DB` should match.
 
 ```bash
 # .env example
-SECRETS_YAML='engagementhq:
-  - "https://engagementhq-site1.example.domain"
-  - "https://engagementhq-site2.example.domain"
-citizenspace:
-  - "https://citizenspace-site1.example.domain"
-  - "https://citizenspace-site2.example.domain"'
-MYSQL_DUCKDB_PATH='host=... user=... database=customdb'
+HARVEST_PORTALS='{"engagementhq":["https://ehq-site1.example.domain","https:/ehq-site2.example.domain"],"citizenspace":["https://cs-site3.example.domain","https://cs-site4.example.domain"]}'
 MYSQL_PWD='...'
-SQLMESH__VARIABLES__OUTPUT_DB="customdb"
-SQLMESH__VARIABLES__OUTPUT_TABLE="sqlmesh_consultations_tbl"
+MYSQL_DUCKDB_PATH='host=localhost user=root database=sqlmesh'
+SQLMESH__VARIABLES__OUTPUT_DB="sqlmesh"
+SQLMESH__VARIABLES__OUTPUT_TABLE="consultations"
 ```
 
 The justfile with this repository includes a default configuration that can be used with `just setup-eks` and then `just schedule-with-eks` which will create an [AWS EKS Auto](https://docs.aws.amazon.com/eks/latest/userguide/quickstart.html) cluster, then schedule a job and database admin container in the `harvest-consultations` namespace. Note that secrets will also be pulled from local env vars and saved in the cluster (which will be using KMS encrypted sealed secrets if setup as above). Reviewing the [justfile](justfile) and the [eks](eks) manifest directory should be enough to configure for specific use cases (e.g. [Use existing VPC](https://eksctl.io/usage/vpc-configuration/#use-existing-vpc-other-custom-configuration) and customising security groups / NAT gateways).
