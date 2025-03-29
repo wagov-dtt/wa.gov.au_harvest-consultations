@@ -1,5 +1,3 @@
-tap "homebrew/bundle"
-brew "fzf"
 brew "uv"
 brew "k9s"
 brew "mysql"
