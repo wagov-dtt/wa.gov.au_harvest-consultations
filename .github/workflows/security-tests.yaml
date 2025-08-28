@@ -33,7 +33,7 @@ jobs:
         run: docker build -t harvest-consultations:latest .
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@76071ef0d7ec797419534a183b498b4d6366cf37 # 0.31.0
+        uses: aquasecurity/trivy-action@f9424c10c36e288d5fa79bd3dfd1aeb2d6eae808 # 0.33.0
         with:
           image-ref: 'harvest-consultations:latest'
           format: 'sarif'
