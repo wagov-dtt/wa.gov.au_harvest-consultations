@@ -1,16 +1,12 @@
-// For format details, see https://aka.ms/devcontainer.json.
 {
-	"name": "Debian 12 (bookworm)",
-	"image": "mcr.microsoft.com/devcontainers/base:bookworm",
-	"hostRequirements": {
-		"memory": "32gb"
-	},
-	"features": {
-		"ghcr.io/devcontainers/features/docker-in-docker:2": {},
-		"ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {}
-	},
-	"mounts": [
-		"source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+	"name": "harvest-consultations",
+	"image": "ghcr.io/wagov-dtt/devcontainer-base",
+	"privileged": true,
+	"runArgs": [
+		"--cgroupns=host"
 	],
-	"onCreateCommand": ".devcontainer/onCreateCommand.sh"
+	"mounts": [
+		"source=dind-var-lib-docker,target=/var/lib/docker,type=volume"
+	],
+	"remoteUser": "vscode"
 }

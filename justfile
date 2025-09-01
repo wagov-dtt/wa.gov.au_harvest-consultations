@@ -1,48 +1,51 @@
 set dotenv-load
 
 ns := "harvest-consultations"
+image := "harvest-consultations"
+registry := "ghcr.io/wagov-dtt"
 
 # Choose a task to run
 default:
   just --choose
 
-# Install project tools
-prereqs:
-  brew bundle install
-  minikube config set memory no-limit
-  minikube config set cpus no-limit
-
-clean:
-  kubectl delete ns {{ns}}
+# Build local test image
+build:
+  docker buildx bake test --progress=plain
 
 # Show local/env secrets for injecting into other tools
 @show-secrets:
   jq -n 'env | {HARVEST_PORTALS, MYSQL_PWD, MYSQL_DUCKDB_PATH, SQLMESH__VARIABLES__OUTPUT_DB, SQLMESH__VARIABLES__OUTPUT_TABLE}'
 
-# Setup minikube
-minikube:
-  which k9s || just prereqs
-  kubectl get nodes || minikube status || minikube start # if kube configured use that cluster, otherwise start minikube
+# Setup k3d cluster
+k3d:
+  kubectl get nodes || k3d cluster list {{ns}} | grep -q {{ns}} || k3d cluster create {{ns}} --port "3306:3306@loadbalancer"
+
+clean:
+  k3d cluster delete {{ns}} || true
 
 # Configures harvest-secret using kubectl
 install-harvest-secret:
   cat kustomize/secrets-template.yaml | NAME=harvest-secret SECRET_JSON=$(just show-secrets) envsubst | kubectl apply -n {{ns}} -f -
 
-# Forward mysql from k8s cluster
-mysql-svc: minikube
+# Deploy mysql service to k3d
+mysql-svc: k3d
   kubectl apply -k kustomize/minikube
   just install-harvest-secret
-  ss -ltpn | grep 3306 || kubectl port-forward service/mysqldb 3306:3306 -n {{ns}} & sleep 1
 
-# SQLMesh ui for local dev
+# SQLMesh development (use VSCode extension - UI is deprecated)
 dev: mysql-svc
-  uv run sqlmesh ui
+  @echo "SQLMesh UI is deprecated. Install the SQLMesh VSCode extension for development."
+  @echo "Run 'sqlmesh plan' and 'sqlmesh apply' from terminal or use VSCode extension."
 
-# Build and test container
-test: mysql-svc
-  minikube image build -t ghcr.io/wagov-dtt/harvest-consultations:dev .
+# Build and test container in k3d
+test: mysql-svc build
+  k3d image import {{image}}:test --cluster {{ns}}
   kubectl delete job test -n {{ns}} --ignore-not-found
   kubectl create job test --from cronjob/harvest-cronjob -n {{ns}}
+
+# Publish multi-platform release image
+publish:
+  docker buildx bake release --progress=plain
 
 # Dump the sqlmesh database to logs/consultations.sql.gz (run test to create/populate db first)
 dump-consultations: mysql-svc
@@ -50,7 +53,6 @@ dump-consultations: mysql-svc
 
 # use aws sso login profiles
 awslogin:
-  which aws || just prereqs
   aws sts get-caller-identity > /dev/null || aws sso login --use-device-code || echo please run '"aws configure sso"' and add AWS_PROFILE/AWS_REGION to your .env file # make sure aws logged in
 
 export CLUSTER := env_var_or_default("CLUSTER", "auto01")
