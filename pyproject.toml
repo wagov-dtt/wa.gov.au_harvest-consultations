@@ -5,6 +5,6 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "requests>=2.32.3",
-    "sqlmesh[github,mysql,web]>=0.167.0",
+    "requests>=2.32.5",
+    "sqlmesh[github,mysql,lsp]>=0.211.2",
 ]
