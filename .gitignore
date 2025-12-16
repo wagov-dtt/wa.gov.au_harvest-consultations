@@ -4,6 +4,11 @@ logs/
 *.db
 *.db.wal
 
+# Railpack build artifacts (generated during build)
+Dockerfile
+Dockerfile.railpack
+.railpack/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
