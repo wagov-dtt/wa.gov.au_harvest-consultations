@@ -1,10 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "wa-gov-au-harvest-consultations"
 version = "0.3.1"
-description = "Add your description here"
+description = "Batch ingestion pipeline for harvesting consultation data from REST APIs"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "requests>=2.32.5",
-    "sqlmesh[github,mysql,lsp]>=0.211.2",
+    "httpx>=0.28.0",
+    "pandas>=2.2.0",
+    "ibis-framework[duckdb]>=11.0.0",
 ]
+
+[project.optional-dependencies]
+test = ["pytest>=8.0.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["harvest"]
+artifacts = ["models/*.sql"]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.13"
