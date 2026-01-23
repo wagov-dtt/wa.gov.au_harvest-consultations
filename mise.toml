@@ -1,2 +1,16 @@
 [tools]
-railpack = "latest"
+just = "latest"
+"github:railwayapp/railpack" = "latest"
+
+[tasks.build]
+description = "Build container image"
+run = """
+#!/usr/bin/env bash
+set -e
+docker start buildkit 2>/dev/null || docker run -d --name buildkit --privileged moby/buildkit
+BUILDKIT_HOST=docker-container://buildkit railpack build . --name ${IMAGE:-harvest-consultations}:${TAG:-latest}
+"""
+
+[tasks.test]
+description = "Run pytest"
+run = "uv run pytest test_harvest.py -v"
