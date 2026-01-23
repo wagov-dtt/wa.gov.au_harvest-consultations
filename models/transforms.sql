@@ -1,10 +1,4 @@
--- DuckDB transforms for consultation data
--- Standardizes raw API data into common schema for MySQL output
-
--- ============================================================================
--- ENGAGEMENTHQ VIEW - Standardize EngagementHQ data
--- ============================================================================
-
+-- Standardize EngagementHQ data
 CREATE OR REPLACE VIEW engagementhq_std AS
 SELECT
   'engagementhq' AS source,
@@ -13,32 +7,24 @@ SELECT
   description,
   ARRAY_TO_STRING(COALESCE("project-tag-list", []), ',') AS tags,
   CASE
-    WHEN tags ILIKE '%close%'
-      THEN 'closed'
-    WHEN state ILIKE 'published'
-      THEN 'open'
-    WHEN state ILIKE 'archived'
-      THEN 'closed'
+    WHEN tags ILIKE '%close%' THEN 'closed'
+    WHEN state ILIKE 'published' THEN 'open'
+    WHEN state ILIKE 'archived' THEN 'closed'
     ELSE LOWER(COALESCE(state, 'unknown'))
   END AS status,
   CASE
-    WHEN url ILIKE 'https://engageagric.engagementhq.com/%'
-      OR url ILIKE 'https://yoursay.dpird.wa.gov.au/%'
+    WHEN url ILIKE '%engageagric.engagementhq.com%' OR url ILIKE '%yoursay.dpird.wa.gov.au%'
       THEN 'Department of Primary Industries and Regional Development'
-    WHEN url ILIKE 'https://haveyoursaywa.engagementhq.com/%'
+    WHEN url ILIKE '%haveyoursaywa.engagementhq.com%'
       THEN 'Department of Planning, Lands and Heritage'
     WHEN "parent-id" = '38135' OR tags ILIKE '%dot%'
       THEN 'Department of Transport'
     WHEN "parent-id" = '37726' OR tags ILIKE '%mrwa%' OR tags ILIKE '%main roads%'
       THEN 'Main Roads Western Australia'
-    WHEN "parent-id" = '38267' OR tags ILIKE '%metronet%'
-      THEN 'METRONET'
-    WHEN "parent-id" = '37724' OR tags ILIKE '%westport%'
-      THEN 'Westport'
-    WHEN "parent-id" = '37725' OR tags ILIKE '%transperth%'
-      THEN 'Transperth'
-    WHEN tags ILIKE '%pta%'
-      THEN 'Public Transport Authority'
+    WHEN "parent-id" = '38267' OR tags ILIKE '%metronet%' THEN 'METRONET'
+    WHEN "parent-id" = '37724' OR tags ILIKE '%westport%' THEN 'Westport'
+    WHEN "parent-id" = '37725' OR tags ILIKE '%transperth%' THEN 'Transperth'
+    WHEN tags ILIKE '%pta%' THEN 'Public Transport Authority'
     ELSE 'Government of Western Australia'
   END AS agency,
   'Western Australia' AS region,
@@ -47,26 +33,19 @@ SELECT
   NULL::DATE AS expirydate
 FROM engagementhq_raw;
 
-
--- ============================================================================
--- CITIZENSPACE VIEW - Standardize CitizenSpace data
--- ============================================================================
-
+-- Standardize CitizenSpace data
 CREATE OR REPLACE VIEW citizenspace_std AS
 SELECT
   'citizenspace' AS source,
   id,
   title AS name,
   overview AS description,
-  LOWER(COALESCE(status, 'unknown')) AS status,
   NULL::VARCHAR AS tags,
+  LOWER(COALESCE(status, 'unknown')) AS status,
   CASE
-    WHEN url ILIKE 'https://consultation.health.wa.gov.au/%'
-      THEN 'Department of Health'
-    WHEN url ILIKE 'https://consult.dwer.wa.gov.au/%'
-      THEN 'Department of Water and Environmental Regulation'
-    WHEN url ILIKE 'https://consultation.dmirs.wa.gov.au/%'
-      THEN 'Department of Energy, Mines, Industry Regulation and Safety'
+    WHEN url ILIKE '%consultation.health.wa.gov.au%' THEN 'Department of Health'
+    WHEN url ILIKE '%consult.dwer.wa.gov.au%' THEN 'Department of Water and Environmental Regulation'
+    WHEN url ILIKE '%consultation.dmirs.wa.gov.au%' THEN 'Department of Energy, Mines, Industry Regulation and Safety'
     ELSE COALESCE(department, 'Government of Western Australia')
   END AS agency,
   'Western Australia' AS region,
@@ -75,28 +54,8 @@ SELECT
   TRY_CAST(enddate AS DATE) AS expirydate
 FROM citizenspace_raw;
 
-
--- ============================================================================
--- CONSULTATIONS FINAL TABLE - Union and filter
--- ============================================================================
-
+-- Union and filter to final table
 CREATE OR REPLACE TABLE consultations_final AS
-SELECT
-  source,
-  id,
-  name,
-  description,
-  status,
-  tags,
-  agency,
-  region,
-  url,
-  publishdate,
-  expirydate,
-  CURRENT_TIMESTAMP AS loaded_at
-FROM (
-  SELECT * FROM engagementhq_std
-  UNION ALL BY NAME
-  SELECT * FROM citizenspace_std
-)
+SELECT source, id, name, description, status, tags, agency, region, url, publishdate, expirydate, CURRENT_TIMESTAMP AS loaded_at
+FROM (SELECT * FROM engagementhq_std UNION ALL BY NAME SELECT * FROM citizenspace_std)
 WHERE status IN ('open', 'closed');

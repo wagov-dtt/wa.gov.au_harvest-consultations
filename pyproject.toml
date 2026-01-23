@@ -9,11 +9,19 @@ description = "Batch ingestion pipeline for harvesting consultation data from RE
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "requests>=2.32.5",
-    "ibis-framework[duckdb]>=9.0.0",
-    "pydantic-settings>=2.0.0",
-    "python-dotenv>=1.0.0",
+    "httpx>=0.28.0",
+    "pandas>=2.2.0",
+    "ibis-framework[duckdb]>=11.0.0",
 ]
 
+[project.optional-dependencies]
+test = ["pytest>=8.0.0"]
+
 [tool.hatch.build.targets.wheel]
-packages = ["harvest", "models"]
+packages = ["harvest"]
+artifacts = ["models/*.sql"]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.13"

@@ -3,64 +3,38 @@ set dotenv-load
 image := "harvest-consultations"
 registry := "ghcr.io/wagov-dtt"
 
-# Choose a task to run
+# List commands
 default:
-  just --choose
+  @just --list
 
-# ============================================================================
-# LOCAL DEVELOPMENT
-# ============================================================================
+# Run pytest (fast)
+test:
+  uv run pytest test_harvest.py -v
 
-# Build image with railpack
-build:
-  @docker ps -a --filter "name=buildkit" 2>/dev/null | grep -q buildkit || \
-    (echo "Starting BuildKit daemon..." && \
-     docker run --rm --privileged -d --name buildkit moby/buildkit > /dev/null && \
-     sleep 2)
-  BUILDKIT_HOST='docker-container://buildkit' railpack build . --name {{image}}:test --config-file railpack.json
+# Build image, run with MariaDB, show results (slow)
+test-full: _build _mysql
+  docker run --rm --network host --env-file .env \
+    -e MYSQL_DUCKDB_PATH="host=127.0.0.1 user=root" {{image}}:test
+  docker run --rm --network host --env-file .env --entrypoint python \
+    -e MYSQL_DUCKDB_PATH="host=127.0.0.1 user=root" {{image}}:test -m harvest stats
 
-# Start local Percona MySQL
-mysql:
-  @docker ps -a --filter "name=harvest-mysql" 2>/dev/null | grep -q harvest-mysql && \
-    (echo "MySQL already running" && docker start harvest-mysql 2>/dev/null) || \
-    (echo "Starting Percona MySQL..." && \
-     docker run --rm -d \
-       --name harvest-mysql \
-       -e MYSQL_ROOT_PASSWORD={{env("MYSQL_PWD", "secret")}} \
-       -p 3306:3306 \
-       percona:latest \
-       --default-authentication-plugin=mysql_native_password && \
-     echo "✓ MySQL ready on localhost:3306")
+# Build and push multi-platform image
+publish: _buildkit
+  BUILDKIT_HOST=docker-container://buildkit railpack build . \
+    --name {{registry}}/{{image}}:latest --platform linux/amd64,linux/arm64 --push
 
-# Stop local MySQL
-mysql-stop:
-  docker stop harvest-mysql 2>/dev/null || echo "MySQL not running"
+# Stop services
+clean:
+  -docker stop harvest-mysql buildkit 2>/dev/null
+  -docker rm harvest-mysql buildkit 2>/dev/null
 
-# Test container locally with local MySQL (uses .env for config)
-test: build mysql
-  @echo "Running container against local MySQL (with .env config)..."
-  docker run --rm \
-    --network host \
-    --env-file .env \
-    -e MYSQL_DUCKDB_PATH="host=127.0.0.1 user=root" \
-    {{image}}:test
+_buildkit:
+  @docker start buildkit 2>/dev/null || docker run -d --name buildkit --privileged moby/buildkit
 
-# ============================================================================
-# PRODUCTION
-# ============================================================================
+_build: _buildkit
+  BUILDKIT_HOST=docker-container://buildkit railpack build . --name {{image}}:test
 
-# Build and publish multi-platform image
-publish:
-  @docker ps -a --filter "name=buildkit" 2>/dev/null | grep -q buildkit || \
-    (echo "Starting BuildKit daemon..." && \
-     docker run --rm --privileged -d --name buildkit moby/buildkit > /dev/null && \
-     sleep 2)
-  BUILDKIT_HOST='docker-container://buildkit' railpack build . --name {{registry}}/{{image}}:latest --platform linux/amd64 --platform linux/arm64 --config-file railpack.json
-
-# ============================================================================
-# CLEANUP
-# ============================================================================
-
-# Stop all local services
-clean: mysql-stop
-  @echo "✓ Cleaned up local environment"
+_mysql:
+  @docker start harvest-mysql 2>/dev/null || docker run -d --name harvest-mysql \
+    -e MARIADB_ROOT_PASSWORD=${MYSQL_PWD:-secret} -p 3306:3306 mariadb:11
+  @until docker exec harvest-mysql mariadb -uroot -p${MYSQL_PWD:-secret} -e "SELECT 1" >/dev/null 2>&1; do sleep 1; done

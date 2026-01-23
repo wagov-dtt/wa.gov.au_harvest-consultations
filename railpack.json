@@ -1,5 +1,0 @@
-{
-  "start": {
-    "cmd": ["python", "-m", "harvest"]
-  }
-}
