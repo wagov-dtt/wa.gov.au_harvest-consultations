@@ -9,7 +9,7 @@ from harvest.__main__ import fetch_engagementhq, fetch_citizenspace, harvest_all
 import httpx
 
 
-EHQ_URLS = ["https://www.mysaytransport.wa.gov.au"]
+EHQ_URLS = ["https://yoursay.dpird.wa.gov.au"]
 CS_URLS = ["https://consultation.health.wa.gov.au"]
 
 
