@@ -45,7 +45,8 @@ local-env:
     printf '%s' "$value"
   }
   {
-    portals="$(clean "${PORTALS_JSON:-{}}")"
+    portals="$(clean "${PORTALS_JSON:-}")"
+    if [[ -z "$portals" ]]; then portals='{}'; fi
     portals="${portals//\\\\\"/\"}"
     portals="${portals//\\\"/\"}"
     printf 'PORTALS_JSON=%s\n' "$portals"
