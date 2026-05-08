@@ -1,0 +1,54 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: harvest-consultations
+  labels:
+  {{- include "harvest-consultations.labels" . | nindent 4 }}
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: {{ .Values.harvestConsultations.failedJobsHistoryLimit
+    }}
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          containers:
+          - env:
+            - name: KUBERNETES_CLUSTER_DOMAIN
+              value: {{ quote .Values.kubernetesClusterDomain }}
+            envFrom:
+            - secretRef:
+                name: harvest-env
+            image: {{ .Values.harvestConsultations.harvest.image.repository }}:{{
+              .Values.harvestConsultations.harvest.image.tag | default .Chart.AppVersion
+              }}
+            imagePullPolicy: {{ .Values.harvestConsultations.harvest.imagePullPolicy
+              }}
+            name: harvest
+            resources: {{- toYaml .Values.harvestConsultations.harvest.resources
+              | nindent 14 }}
+            securityContext: {{- toYaml .Values.harvestConsultations.harvest.containerSecurityContext
+              | nindent 14 }}
+            volumeMounts:
+            - mountPath: /tmp
+              name: tmp
+          nodeSelector: {{- toYaml .Values.harvestConsultations.nodeSelector | nindent
+            12 }}
+          restartPolicy: Never
+          securityContext: {{- toYaml .Values.harvestConsultations.podSecurityContext
+            | nindent 12 }}
+          serviceAccountName: {{ include "harvest-consultations.serviceAccountName"
+            . }}
+          tolerations: {{- toYaml .Values.harvestConsultations.tolerations | nindent
+            12 }}
+          topologySpreadConstraints: {{- toYaml .Values.harvestConsultations.topologySpreadConstraints
+            | nindent 12 }}
+          volumes:
+          - emptyDir: {}
+            name: tmp
+  schedule: {{ .Values.harvestConsultations.schedule | quote }}
+  startingDeadlineSeconds: {{ .Values.harvestConsultations.startingDeadlineSeconds
+    }}
+  successfulJobsHistoryLimit: {{ .Values.harvestConsultations.successfulJobsHistoryLimit
+    }}

@@ -1,16 +1,15 @@
 [tools]
-just = "latest"
-"github:railwayapp/railpack" = "latest"
+just = "1"
+kind = "0.30"
+kubectl = "1.36"
+kustomize = "5"
+helm = "4"
+"github:arttor/helmify" = "v0.4"
 
 [tasks.build]
 description = "Build container image"
-run = """
-#!/usr/bin/env bash
-set -e
-docker start buildkit 2>/dev/null || docker run -d --name buildkit --privileged moby/buildkit
-BUILDKIT_HOST=docker-container://buildkit railpack build . --name ${IMAGE:-harvest-consultations}:${TAG:-latest}
-"""
+run = "docker build -t ${IMAGE:-harvest-consultations}:${TAG:-test} ."
 
 [tasks.test]
-description = "Run pytest"
-run = "uv run pytest test_harvest.py -v"
+description = "Lint PHP script"
+run = "docker run --rm -v \"$PWD:/app\" -w /app php:8.4-cli-trixie php -l harvest.php"

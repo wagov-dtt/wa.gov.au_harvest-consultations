@@ -1,20 +1,11 @@
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-
 # Project
 .env
+.k8s.env
 *.db
 *.db.wal
 logs/
-
-# Railpack
-Dockerfile
-.railpack/
+dist/
 
 # IDE/Tools
-.pytest_cache/
-.ruff_cache/
-.mypy_cache/
+.idea/
+.vscode/

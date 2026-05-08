@@ -1,0 +1,12 @@
+namespace: harvest
+resources:
+  - ../local/namespace.yaml
+  - ../base/mariadb.yaml
+secretGenerator:
+  - name: harvest-env
+    envs:
+      - ../../.k8s.env
+    literals:
+      - DB_HOST=mariadb
+generatorOptions:
+  disableNameSuffixHash: true

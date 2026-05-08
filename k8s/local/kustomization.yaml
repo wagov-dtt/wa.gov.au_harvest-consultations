@@ -1,0 +1,16 @@
+namespace: harvest
+resources:
+  - namespace.yaml
+  - ../base/mariadb.yaml
+  - ../base/job.yaml
+images:
+  - name: harvest-consultations
+    newTag: test
+secretGenerator:
+  - name: harvest-env
+    envs:
+      - ../../.k8s.env
+    literals:
+      - DB_HOST=mariadb
+generatorOptions:
+  disableNameSuffixHash: true

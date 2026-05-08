@@ -1,0 +1,42 @@
+name: Nightly consultations dump
+
+on:
+  schedule:
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+env:
+  PORTALS_JSON: ${{ secrets.PORTALS_JSON }}
+  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+  DB_NAME: ${{ secrets.DB_NAME }}
+  DB_TABLE: ${{ secrets.DB_TABLE }}
+
+jobs:
+  dump:
+    runs-on: ubuntu-24.04
+    environment: nightly
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      # actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+
+      # jdx/mise-action@v2
+      - name: Setup mise
+        uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac
+
+      - name: Build dump
+        run: just ci-dump
+
+      - name: Verify dump artifact
+        run: just verify-dump
+
+      # actions/upload-artifact@v4
+      - name: Upload SQL artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sql
+          path: dist/sql.tar.gz
+          if-no-files-found: error
+          retention-days: 14
