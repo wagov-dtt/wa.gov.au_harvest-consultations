@@ -1,0 +1,5 @@
+[tools]
+"github:arttor/helmify" = "latest"
+helm = "latest"
+kind = "latest"
+kubectl = "latest"
