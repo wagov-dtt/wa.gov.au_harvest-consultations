@@ -24,56 +24,65 @@ build:
   docker build -t {{image}}:test .
 
 # Create/reuse the local kind cluster
-cluster-up:
+_cluster-up:
   @kind get clusters | grep -qx '{{cluster}}' || kind create cluster --name {{cluster}} --image {{kind_node_image}} --wait 5m
   kubectl config use-context kind-{{cluster}}
   kubectl wait --for=condition=Ready nodes --all --timeout=5m
   -kubectl taint nodes --all node-role.kubernetes.io/control-plane- >/dev/null 2>&1
 
 # Delete local Kubernetes namespace state but keep the kind cluster
-cluster-reset: cluster-up
+_cluster-reset: _cluster-up
   -kubectl delete namespace {{namespace}} --ignore-not-found=true --wait=true
 
-# Generate sanitized env file for kustomize secretGenerator
-local-env:
+# Generate env file for kustomize secretGenerator
+_local-env:
   #!/usr/bin/env bash
   set -euo pipefail
   clean() {
     local value="${1:-}"
-    value="${value#\'}"; value="${value%\'}"
-    value="${value#\"}"; value="${value%\"}"
+    if [[ ${#value} -ge 2 ]]; then
+      local first="${value:0:1}"
+      local last="${value: -1}"
+      if [[ "$first" == "$last" && ( "$first" == "'" || "$first" == '"' ) ]]; then
+        value="${value:1:${#value}-2}"
+      fi
+    fi
     printf '%s' "$value"
   }
+  db_password="${DB_PASSWORD:-}"
+  if [[ -z "$db_password" ]]; then
+    db_password="$(openssl rand -hex 24)"
+  fi
   {
     portals="$(clean "${PORTALS_JSON:-}")"
     if [[ -z "$portals" ]]; then portals='{}'; fi
     portals="${portals//\\\\\"/\"}"
     portals="${portals//\\\"/\"}"
     printf 'PORTALS_JSON=%s\n' "$portals"
-    printf 'DB_PASSWORD=%s\n' "$(clean "${DB_PASSWORD:-secret}")"
+    printf 'DB_PASSWORD=%s\n' "$db_password"
     printf 'DB_NAME=%s\n' "$(clean "${DB_NAME:-harvest_consultations}")"
     printf 'DB_TABLE=%s\n' "$(clean "${DB_TABLE:-consultations}")"
     printf 'DB_PORT=%s\n' "$(clean "${DB_PORT:-3306}")"
-    if [[ -n "${DB_USER:-}" ]]; then printf 'DB_USER=%s\n' "$(clean "$DB_USER")"; fi
+    if [[ -n "${DB_USER:-}" ]]; then printf 'DB_USER=%s\n' "$DB_USER"; fi
   } > .k8s.env
 
 # Load the locally built harvest image into kind
-load-image: cluster-up
+_load-image: _cluster-up
   kind load docker-image {{image}}:test --name {{cluster}}
 
 # Deploy local/CI database resources and wait for MariaDB without running the harvest Job
-cluster-smoke: build deploy-db wait-db
+cluster-smoke: build _deploy-db _wait-db
   @echo "kind cluster, image import, kustomize apply, and MariaDB readiness passed"
 
 # Apply local DB-only kustomize overlay with fresh namespace state
-deploy-db: local-env cluster-reset load-image
+_deploy-db: _local-env _cluster-reset _load-image
   kustomize build --load-restrictor LoadRestrictionsNone k8s/local-db | kubectl apply -f -
 
 # Apply the full local overlay and run a one-shot Job from the CronJob template
-deploy-local: deploy-db wait-db run-job
+deploy-local: _deploy-db _wait-db _run-job
 
 # Wait until the local MariaDB pod accepts SQL connections
-wait-db:
+_wait-db:
   #!/usr/bin/env bash
   set -euo pipefail
   kubectl -n {{namespace}} rollout status statefulset/mariadb --timeout=3m
@@ -83,23 +92,23 @@ wait-db:
     sh -ceu 'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb -uroot -e "SELECT 1" >/dev/null'; do
     if (( SECONDS >= deadline )); then
       echo "Timed out waiting for MariaDB SQL login" >&2
-      just dump-debug
+      just _dump-debug
       exit 1
     fi
     sleep 2
   done
 
 # Run/re-run the local harvest Job after MariaDB is ready
-run-job:
+_run-job:
   #!/usr/bin/env bash
   set -euo pipefail
   kubectl -n {{namespace}} delete job harvest-run --ignore-not-found=true --wait=true
   kustomize build --load-restrictor LoadRestrictionsNone k8s/local | kubectl apply -f -
   kubectl -n {{namespace}} create job harvest-run --from=cronjob/harvest-consultations
-  just wait-job
+  just _wait-job
 
 # Wait for the harvest Job and print diagnostics on failure
-wait-job:
+_wait-job:
   #!/usr/bin/env bash
   set -euo pipefail
   deadline=$((SECONDS + 1200))
@@ -118,12 +127,12 @@ wait-job:
     fi
     if [[ "$failed" != "0" ]]; then
       echo "Harvest job failed" >&2
-      just dump-debug
+      just _dump-debug
       exit 1
     fi
     if (( SECONDS >= deadline )); then
       echo "Timed out waiting for harvest job completion" >&2
-      just dump-debug
+      just _dump-debug
       exit 1
     fi
     if (( SECONDS - last_report >= 30 )); then
@@ -135,7 +144,7 @@ wait-job:
   done
 
 # Print local kind/Kubernetes diagnostics
-dump-debug:
+_dump-debug:
   #!/usr/bin/env bash
   set +e
   echo "\n--- diagnostics ---" >&2
@@ -148,7 +157,7 @@ dump-debug:
   echo "--- end diagnostics ---" >&2
 
 # Dump MariaDB to dist/sql.tar.gz and verify restore/readback
-dump-db:
+_dump-db:
   #!/usr/bin/env bash
   set -euo pipefail
   db_name="${DB_NAME:-harvest_consultations}"
@@ -191,8 +200,16 @@ dump-db:
   echo "wrote {{dump_dir}}/{{dump_file}} (${row_count} rows)"
 
 # Build current consultations data in kind and write dist/sql.tar.gz
-ci-dump: build deploy-db wait-db run-job dump-db verify-dump
-  rm -f .k8s.env
+ci-dump:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  trap 'rm -f .k8s.env' EXIT
+  just build
+  just _deploy-db
+  just _wait-db
+  just _run-job
+  just _dump-db
+  just verify-dump
 
 # Verify the SQL dump artifact has the expected mysqldump content
 verify-dump:

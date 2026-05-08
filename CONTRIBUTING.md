@@ -1,12 +1,12 @@
 # Contributing
 
-This repo aims to stay small and boring:
+Keep this repo small and boring:
 
-- Single PHP CLI script for harvesting, normalisation, validation, and MySQL/MariaDB export.
-- No PHP package manager/runtime dependencies; use PHP built-ins plus PDO MySQL.
-- Docker image for execution.
-- kustomize for local/CI Kubernetes.
-- Helm chart generated into `dist/helm` for releases; generated chart output is not committed.
+- One PHP CLI script for harvesting, validation, and export.
+- Plain SQL for normalization where SQL is clearer than PHP.
+- No PHP package manager/runtime dependencies.
+- Plain Kubernetes manifests as source of truth.
+- Helm chart generated into `dist/helm`; generated chart output is not committed.
 
 ## Setup
 
@@ -15,100 +15,156 @@ mise install
 cp example.env .env
 ```
 
-Edit `.env` for local/CI:
+Edit `.env` with real portal URLs and DB password. Use normal JSON for `PORTALS_JSON` and replace the password placeholder:
 
 ```dotenv
-PORTALS_JSON='{"engagementhq":["https://..."],"citizenspace":["https://..."]}'
-DB_PASSWORD='secret'
-DB_NAME='harvest_consultations'
-DB_TABLE='consultations'
+PORTALS_JSON={"engagementhq":["https://..."],"citizenspace":["https://..."]}
+DB_PASSWORD=<set-a-real-password>
+DB_NAME=harvest_consultations
+DB_TABLE=consultations
 ```
 
-`k8s/local` overrides `DB_HOST=mariadb` and runs a local MariaDB StatefulSet. `DB_TABLE` defaults to `consultations` and must be a MySQL identifier.
+`DB_NAME` and `DB_TABLE` are validated as MySQL identifiers. `k8s/local` always sets `DB_HOST=mariadb` for the disposable local DB.
 
-## Daily commands
+## Daily workflow
 
 ```bash
-just check         # PHP syntax + Helm render/lint + docker build
-just cluster-smoke # kind + kustomize + MariaDB readiness, no harvest API run
-just ci-dump       # kind + harvest Job + verified dump artifact
-just verify-dump   # check dist/sql.tar.gz shape
-just helmify       # generate public Helm chart into dist/helm
-just clean         # delete local kind cluster/temp env/chart files
+just check         # fast gate: PHP syntax + chart lint/render + Docker build
+just cluster-smoke # kind + local MariaDB readiness, no external API harvest
+just ci-dump       # canonical full artifact build
+just clean         # remove local kind cluster and generated temp files
 ```
 
-## Local/CI artifact build
+Prefer adding focused checks to `just check` over adding new command paths.
 
-```bash
-just ci-dump
-```
+## Artifact build flow
 
-This creates/reuses a local kind cluster, builds/imports the image, applies `k8s/local`, creates a one-shot `harvest-run` Job from the CronJob template, dumps MariaDB, verifies the dump can be read back, and writes:
+`just ci-dump` does the same thing as the nightly workflow:
+
+1. builds `harvest-consultations:test`,
+2. creates/reuses a kind cluster,
+3. deploys local MariaDB and the CronJob manifest,
+4. creates one `harvest-run` Job from that CronJob,
+5. dumps MariaDB to `dist/sql.tar.gz`,
+6. restores/verifies the dump before succeeding.
+
+The artifact must contain exactly one file:
 
 ```text
-dist/sql.tar.gz
+sql.sql
 ```
 
-The GitHub nightly artifact workflow uses the same command.
+## Helm chart flow
 
-## Public Helm chart
+Source of truth:
 
-The source of truth is plain Kubernetes YAML under `k8s/base` plus kustomize overlays. The public chart is generated from `k8s/public`:
+```text
+k8s/base/cronjob.yaml
+k8s/public/kustomization.yaml
+```
+
+Generate and test the chart locally:
 
 ```bash
 just helmify
+helm lint dist/helm/harvest-consultations
+helm template harvest-consultations dist/helm/harvest-consultations >/dev/null
 ```
 
-This writes the generated chart to:
-
-```text
-dist/helm/harvest-consultations
-```
-
-CI packages that generated chart on semver tags and publishes it to:
+On semver tags, CI packages that generated chart and pushes it to:
 
 ```text
 oci://ghcr.io/wagov-dtt/charts/harvest-consultations
 ```
 
-## Production/EKS install
+## Release checklist
 
-Create/update the runtime secret from dotenv values:
+1. Update `VERSION`.
+2. Run `just check`.
+3. Commit and push `main`.
+4. Tag and push `v$(cat VERSION)`.
+5. Watch `CI and Release` for the tag.
+6. Trigger/watch `Nightly consultations dump` if artifact behavior changed.
+7. Verify the nightly run has a non-expired `sql` artifact.
+
+Useful commands:
 
 ```bash
-kubectl create namespace harvest --dry-run=client -o yaml | kubectl apply -f -
-kubectl -n harvest create secret generic harvest-env \
-  --from-env-file=.env \
-  --dry-run=client -o yaml | kubectl apply -f -
+gh run list --limit 10
+gh run view <run-id> --log-failed
+gh api repos/:owner/:repo/actions/runs/<run-id>/artifacts
 ```
 
-Then install the chart:
+## Nightly environment secrets
+
+The `nightly` GitHub environment needs these secrets:
+
+```text
+PORTALS_JSON
+DB_PASSWORD
+DB_NAME
+DB_TABLE
+DB_PORT
+```
+
+Update from local `.env` without printing values:
 
 ```bash
-helm upgrade --install harvest-consultations \
-  oci://ghcr.io/wagov-dtt/charts/harvest-consultations \
-  --namespace harvest --create-namespace \
-  -f values.prod.yaml
+gh api --method PUT repos/:owner/:repo/environments/nightly >/dev/null
+gh secret set --env nightly --env-file .env
 ```
 
-Minimal `values.prod.yaml`:
+## Troubleshooting
 
-```yaml
-harvestConsultations:
-  schedule: "0 18 * * *"
+### `PORTALS_JSON must be a JSON object`
+
+Validate the local env-to-kustomize rendering without printing secret values:
+
+```bash
+just _local-env
+python3 - <<'PY'
+import json
+from pathlib import Path
+vals = dict(line.split('=', 1) for line in Path('.k8s.env').read_text().splitlines() if '=' in line)
+data = json.loads(vals['PORTALS_JSON'])
+print(sorted(data))
+PY
+rm -f .k8s.env
 ```
+
+If this fails, fix `.env` first, then push the environment secrets again.
+
+### Harvest Job failed in kind/CI
+
+`just _wait-job` prints diagnostics automatically during `just ci-dump`. For an existing failed local cluster, run:
+
+```bash
+just _dump-debug
+```
+
+Check the final `Error:` line from `job/harvest-run` first; Kubernetes events are often secondary.
+
+### Artifact missing
+
+Confirm the nightly workflow reached the upload step and query artifacts directly:
+
+```bash
+gh api repos/:owner/:repo/actions/runs/<run-id>/artifacts \
+  --jq '.artifacts[] | [.name,.size_in_bytes,.expired] | @tsv'
+```
+
+Expected artifact name: `sql`.
 
 ## Pinning and upgrade policy
 
-- GitHub Actions are pinned to commit SHAs, with comments showing the reviewed major tag.
-- Project releases are semver tagged; image/chart publishing only happens for matching `vX.Y.Z` tags.
-- Runtime/tooling outside GitHub Actions uses low-churn major or minor pins where upstream publishes them, for example `php:8.4-cli-trixie`, `mariadb:11`, `helm = "4"`.
-- Keep exact Kubernetes node-image pins for kind because `kindest/node` tags are published per Kubernetes patch release.
-- Run `just check` and `just cluster-smoke` for routine upgrades; run `just ci-dump` before release or when cluster/dump behaviour changes.
+- GitHub Actions are pinned to commit SHAs, with comments showing the reviewed tag and Node runtime.
+- Use current Node-based action majors to avoid Node runtime deprecation warnings.
+- Runtime/tooling pins should be low-churn majors/minors where upstream supports them, e.g. `php:8.4-cli-trixie`, `mariadb:11`, `helm = "4"`.
+- Keep exact `kindest/node` pins because kind node images are Kubernetes-patch-specific.
 
 ## Code style
 
-- Prefer direct, boring PHP with explicit data flow.
-- Keep dependencies minimal.
-- Put data-shaping logic in SQL when clearer.
-- Add focused tests for parsing, transforms, and regressions.
+- Prefer direct, explicit PHP and SQL over new abstraction layers.
+- Keep validation near trust boundaries: env parsing, API response parsing, SQL export.
+- Fail closed before export: empty/malformed inputs should not publish a final table.
+- Do not add dependencies or new execution paths unless they remove more complexity than they add.

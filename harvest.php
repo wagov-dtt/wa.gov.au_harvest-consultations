@@ -5,6 +5,8 @@ declare(strict_types=1);
 const DEFAULT_DB_NAME = 'harvest_consultations';
 const DEFAULT_DB_TABLE = 'consultations';
 const SQL_FILE = __DIR__ . '/sql/harvest.sql';
+const DEFAULT_MAX_HTTP_RESPONSE_BYTES = 10485760;
+const DB_PASSWORD_PLACEHOLDER = '<set-a-real-password>';
 
 function config(): array
 {
@@ -13,7 +15,7 @@ function config(): array
         'db_host' => env_value('DB_HOST', 'localhost'),
         'db_port' => env_value('DB_PORT', '3306'),
         'db_user' => env_value('DB_USER', 'root'),
-        'db_password' => env_value('DB_PASSWORD'),
+        'db_password' => db_password(env_value('DB_PASSWORD')),
         'db_name' => mysql_identifier('DB_NAME', env_value('DB_NAME', DEFAULT_DB_NAME)),
         'db_table' => mysql_identifier('DB_TABLE', env_value('DB_TABLE', DEFAULT_DB_TABLE)),
     ];
@@ -22,7 +24,15 @@ function config(): array
 function env_value(string $key, string $default = ''): string
 {
     $value = $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key);
-    return trim($value === false || $value === null ? $default : (string)$value, "'\"");
+    return $value === false || $value === null ? $default : (string)$value;
+}
+
+function db_password(string $value): string
+{
+    if ($value === '' || $value === DB_PASSWORD_PLACEHOLDER) {
+        throw new RuntimeException('DB_PASSWORD must be set to a non-empty secret value');
+    }
+    return $value;
 }
 
 function mysql_identifier(string $key, string $value): string
@@ -64,7 +74,25 @@ function parse_portals(string $value): array
 function is_https_url(string $value): bool
 {
     $parts = parse_url($value);
-    return ($parts['scheme'] ?? '') === 'https' && !empty($parts['host']);
+    $host = $parts['host'] ?? '';
+    return ($parts['scheme'] ?? '') === 'https' && $host !== '' && !is_forbidden_host($host);
+}
+
+function is_forbidden_host(string $host): bool
+{
+    $host = strtolower(rtrim($host, '.'));
+    if ($host === 'localhost' || str_ends_with($host, '.localhost')) {
+        return true;
+    }
+    foreach (['.local', '.internal', '.svc', '.cluster.local'] as $suffix) {
+        if (str_ends_with($host, $suffix)) {
+            return true;
+        }
+    }
+    if (filter_var($host, FILTER_VALIDATE_IP) === false) {
+        return false;
+    }
+    return filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
 }
 
 function connect_mysql(array $cfg, ?string $database = null): PDO
@@ -133,6 +161,10 @@ function load_sql(string $path): array
 
 function http_get(string $url, array $headers = []): string
 {
+    if (!is_https_url($url)) {
+        throw new RuntimeException("GET URL must be public HTTPS: $url");
+    }
+
     $headerLines = ['User-Agent: harvest-consultations/1.0'];
     foreach ($headers as $name => $value) {
         $headerLines[] = $name . ': ' . $value;
@@ -144,20 +176,40 @@ function http_get(string $url, array $headers = []): string
             'header' => implode("\r\n", $headerLines),
             'timeout' => 30,
             'ignore_errors' => true,
+            'follow_location' => 0,
+            'max_redirects' => 0,
         ],
     ]);
-    $body = @file_get_contents($url, false, $context);
-    if ($body === false) {
+    $stream = @fopen($url, 'rb', false, $context);
+    if ($stream === false) {
         $error = error_get_last()['message'] ?? 'unknown error';
         throw new RuntimeException("GET failed: $url ($error)");
     }
 
-    $status = http_status($http_response_header ?? []);
-    if ($status < 200 || $status >= 300) {
-        throw new RuntimeException("GET failed: $url (HTTP $status)");
-    }
+    try {
+        $responseHeaders = stream_get_meta_data($stream)['wrapper_data'] ?? [];
+        $status = http_status($responseHeaders);
+        if ($status < 200 || $status >= 300) {
+            throw new RuntimeException("GET failed: $url (HTTP $status)");
+        }
 
-    return $body;
+        $maxBytes = max_http_response_bytes();
+        $contentLength = http_content_length($responseHeaders);
+        if ($contentLength !== null && $contentLength > $maxBytes) {
+            throw new RuntimeException("GET failed: $url (response exceeds {$maxBytes} bytes)");
+        }
+
+        $body = stream_get_contents($stream, $maxBytes + 1);
+        if ($body === false) {
+            throw new RuntimeException("GET failed: $url (read failed)");
+        }
+        if (strlen($body) > $maxBytes) {
+            throw new RuntimeException("GET failed: $url (response exceeds {$maxBytes} bytes)");
+        }
+        return $body;
+    } finally {
+        fclose($stream);
+    }
 }
 
 function http_status(array $headers): int
@@ -168,6 +220,29 @@ function http_status(array $headers): int
         }
     }
     return 0;
+}
+
+function http_content_length(array $headers): ?int
+{
+    foreach ($headers as $header) {
+        if (preg_match('/^Content-Length:\s*(\d+)\s*$/i', $header, $matches)) {
+            return (int)$matches[1];
+        }
+    }
+    return null;
+}
+
+function max_http_response_bytes(): int
+{
+    $value = env_value('MAX_HTTP_RESPONSE_BYTES', (string)DEFAULT_MAX_HTTP_RESPONSE_BYTES);
+    if (!preg_match('/^[1-9][0-9]*$/', $value)) {
+        throw new RuntimeException('MAX_HTTP_RESPONSE_BYTES must be a positive integer');
+    }
+    $bytes = (int)$value;
+    if ($bytes < 1024) {
+        throw new RuntimeException('MAX_HTTP_RESPONSE_BYTES must be at least 1024');
+    }
+    return $bytes;
 }
 
 function http_json(string $url, array $headers = []): mixed
@@ -192,6 +267,43 @@ function text_or_null(mixed $value): ?string
         return null;
     }
     return is_scalar($value) ? (string)$value : json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+}
+
+function validated_record_url(?string $candidate, string $portalUrl): string
+{
+    $fallback = rtrim($portalUrl, '/');
+    if ($candidate === null || $candidate === '') {
+        return $fallback;
+    }
+
+    $url = absolutize_record_url($candidate, $fallback);
+    if (!is_https_url($url)) {
+        return $fallback;
+    }
+
+    $urlParts = parse_url($url);
+    $portalParts = parse_url($fallback);
+    $urlHost = strtolower(rtrim($urlParts['host'] ?? '', '.'));
+    $portalHost = strtolower(rtrim($portalParts['host'] ?? '', '.'));
+    if ($urlHost === '' || $urlHost !== $portalHost) {
+        return $fallback;
+    }
+
+    $urlPort = $urlParts['port'] ?? 443;
+    $portalPort = $portalParts['port'] ?? 443;
+    return $urlPort === $portalPort ? $url : $fallback;
+}
+
+function absolutize_record_url(string $candidate, string $portalUrl): string
+{
+    if (!str_starts_with($candidate, '/') || str_starts_with($candidate, '//')) {
+        return $candidate;
+    }
+
+    $parts = parse_url($portalUrl);
+    $host = $parts['host'] ?? '';
+    $port = isset($parts['port']) ? ':' . $parts['port'] : '';
+    return 'https://' . $host . $port . $candidate;
 }
 
 function create_stage(PDO $pdo): void
@@ -234,7 +346,7 @@ function harvest_engagementhq(array $cfg, PDOStatement $insert): int
                 $links = is_array($row['links'] ?? null) ? $row['links'] : [];
                 $tagsValue = $attrs['project-tag-list'] ?? $row['project-tag-list'] ?? [];
                 $tags = is_array($tagsValue) ? implode(',', array_map('strval', $tagsValue)) : (string)$tagsValue;
-                $recordUrl = text_or_null($links['self'] ?? $row['url'] ?? $url) ?? $url;
+                $recordUrl = validated_record_url(text_or_null($links['self'] ?? $row['url'] ?? null), $url);
                 $parentId = text_or_null($attrs['parent-id'] ?? $row['parent-id'] ?? null);
 
                 $insert->execute([
@@ -272,7 +384,7 @@ function harvest_citizenspace(array $cfg, PDOStatement $insert): int
                 if (!is_array($row)) {
                     continue;
                 }
-                $recordUrl = text_or_null($row['url'] ?? null);
+                $recordUrl = validated_record_url(text_or_null($row['url'] ?? null), $url);
                 $insert->execute([
                     'source' => 'citizenspace',
                     'id' => text_or_null($row['id'] ?? '') ?? '',

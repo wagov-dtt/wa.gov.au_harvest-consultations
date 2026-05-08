@@ -1,4 +1,5 @@
-.git
-.env
-.k8s.env
-dist
+*
+!Dockerfile
+!harvest.php
+!sql/
+!sql/**

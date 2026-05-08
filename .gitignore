@@ -1,12 +1,20 @@
-# Project
+# Local secrets/generated files
 .env
 .k8s.env
-*.db
-*.db.wal
-logs/
+values.prod.yaml
 dist/
 vendor/
 
-# IDE/Tools
+# Local databases/logs
+*.db
+*.db.wal
+logs/
+
+# Tool caches/build output
+.pytest_cache/
+.venv/
+target/
+
+# IDEs
 .idea/
 .vscode/
