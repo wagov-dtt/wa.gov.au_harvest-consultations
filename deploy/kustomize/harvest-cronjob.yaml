@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: harvest-cronjob
+  labels:
+    app: harvest-cronjob
+spec:
+  schedule: "@hourly"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: harvest-cronjob
+        spec:
+          containers:
+            - name: harvest
+              image: duckdb/duckdb:1.5.2
+              imagePullPolicy: IfNotPresent
+              command: ["duckdb", "-c", ".read /etc/config/harvest.sql"]
+              volumeMounts:
+                - name: config
+                  mountPath: /etc/config
+                  readOnly: true
+          restartPolicy: Never
+          volumes:
+            - name: config
+              configMap:
+                name: harvest-config

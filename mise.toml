@@ -1,0 +1,7 @@
+[tools]
+duckdb = "latest"
+"github:arttor/helmify" = "latest"
+helm = "latest"
+kind = "latest"
+kubectl = "latest"
+kustomize = "latest"

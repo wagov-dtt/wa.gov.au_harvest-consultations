@@ -1,73 +1,91 @@
-set dotenv-load
-
 ns := "harvest-consultations"
 
-# Choose a task to run
 default:
   just --choose
 
-# Install project tools
-prereqs:
-  brew bundle install
-  minikube config set memory no-limit
-  minikube config set cpus no-limit
-
 clean:
-  kubectl delete ns {{ns}}
+  kind delete cluster --name harvest || true
+  rm -rf deploy/helm dist
 
-# Show local/env secrets for injecting into other tools
-@show-secrets:
-  jq -n 'env | {HARVEST_PORTALS, MYSQL_PWD, MYSQL_DUCKDB_PATH, SQLMESH__VARIABLES__OUTPUT_DB, SQLMESH__VARIABLES__OUTPUT_TABLE}'
+# Start local k8s cluster with kind
+kind-up:
+  kind get clusters | grep -q harvest || kind create cluster --name harvest
+  kubectl apply -k deploy/kustomize
 
-# Setup minikube
-minikube:
-  which k9s || just prereqs
-  kubectl get nodes || minikube status || minikube start # if kube configured use that cluster, otherwise start minikube
+# Forward mariadb from k8s cluster
+mariadb-svc: kind-up
+  ss -ltpn | grep 3306 || kubectl port-forward service/mariadb 3306:3306 -n {{ns}} & sleep 1
 
-# Configures harvest-secret using kubectl
-install-harvest-secret:
-  cat kustomize/secrets-template.yaml | NAME=harvest-secret SECRET_JSON=$(just show-secrets) envsubst | kubectl apply -n {{ns}} -f -
+# Run the DuckDB pipeline locally
+run:
+  duckdb -c ".read deploy/kustomize/harvest.sql"
 
-# Forward mysql from k8s cluster
-mysql-svc: minikube
-  kubectl apply -k kustomize/minikube
-  just install-harvest-secret
-  ss -ltpn | grep 3306 || kubectl port-forward service/mysqldb 3306:3306 -n {{ns}} & sleep 1
-
-# SQLMesh ui for local dev
-dev: mysql-svc
-  uv run sqlmesh ui
-
-# Build and test container
-test: mysql-svc
-  minikube image build -t ghcr.io/wagov-dtt/harvest-consultations:dev .
+# Create a one-off test job in the cluster
+test: kind-up
   kubectl delete job test -n {{ns}} --ignore-not-found
   kubectl create job test --from cronjob/harvest-cronjob -n {{ns}}
 
-# Dump the sqlmesh database to logs/consultations.sql.gz (run test to create/populate db first)
-dump-consultations: mysql-svc
-  mkdir logs; kubectl exec -n {{ns}} percona-mysql-0 -- mysqldump -uroot --password=$MYSQL_PWD --compact --single-transaction --no-create-info sqlmesh | gzip > logs/consultations.sql.gz
+# Generate helm chart from kustomize
+helm-generate:
+  rm -rf deploy/helm
+  mkdir -p deploy/helm
+  kustomize build deploy/kustomize | helmify deploy/helm/harvest-consultations
+  @echo "Chart generated at deploy/helm/harvest-consultations"
 
-# use aws sso login profiles
-awslogin:
-  which aws || just prereqs
-  aws sts get-caller-identity > /dev/null || aws sso login --use-device-code || echo please run '"aws configure sso"' and add AWS_PROFILE/AWS_REGION to your .env file # make sure aws logged in
+# Install/upgrade helm chart (generates chart first)
+helm-install: helm-generate
+  helm upgrade --install harvest deploy/helm/harvest-consultations \
+    --namespace {{ns}} --create-namespace \
+    --set harvestCronjob.harvest.env.mysqlHost=harvest-harvest-consultations-mariadb
 
-export CLUSTER := env_var_or_default("CLUSTER", "auto01")
+# Package helm chart
+helm-package: helm-generate
+  mkdir -p dist
+  helm package deploy/helm/harvest-consultations -d dist/
 
-# Create an eks cluster for testing
-setup-eks: awslogin
-  eksctl get cluster --name {{CLUSTER}} > /dev/null || cat eks/eksctl-cluster-template.yaml | envsubst | eksctl create cluster -f - # default auto cluster
-  aws kms describe-key --key-id alias/eks/secrets > /dev/null || aws kms create-alias --alias-name alias/eks/secrets --target-key-id $(aws kms create-key --query 'KeyMetadata.KeyId' --output text)
-  eksctl utils enable-secrets-encryption --cluster {{CLUSTER}} --key-arn $(aws kms describe-key --key-id alias/eks/secrets --query 'KeyMetadata.Arn' --output text) --region $AWS_REGION # enable kms secrets
-  eksctl utils write-kubeconfig --cluster {{CLUSTER}}
-  kubectl apply -f eks/auto-class-manifests.yaml # default storage/alb classes
+# === CI / nightly validation ===
 
-# Deploy scheduled task to eks with secrets
-schedule-with-eks:
+# Full end-to-end test: kind cluster → helm deploy → run job → dump → validate
+ci-test:
   #!/usr/bin/env bash
-  export SECRETS_YAML_B64=$(echo -n "$SECRETS_YAML" | base64 --wrap=0)
-  kubectl get ns {{ns}} || kubectl create ns {{ns}}
-  cat eks/k8s-harvestjob.yaml | envsubst | kubectl apply -f -
-  kubectl apply -f eks/k8s-adminer.yaml
-  kubectl port-forward service/adminer-service 8000:80 -n {{ns}} & sleep 1
+  set -euo pipefail
+
+  echo "=== CI: starting kind cluster ==="
+  kind get clusters | grep -q harvest || kind create cluster --name harvest
+
+  echo "=== CI: generating and installing helm chart ==="
+  just helm-generate
+  helm upgrade --install harvest deploy/helm/harvest-consultations \
+    --namespace {{ns}} --create-namespace \
+    --set harvestCronjob.harvest.env.mysqlHost=harvest-harvest-consultations-mariadb
+
+  echo "=== CI: waiting for MariaDB (up to 5 min) ==="
+  kubectl wait --for=condition=ready pod -l app=mariadb -n {{ns}} --timeout=300s
+
+  echo "=== CI: triggering harvest job ==="
+  kubectl delete job ci-harvest -n {{ns}} --ignore-not-found
+  kubectl create job ci-harvest --from cronjob/harvest-harvest-consultations-harvest-cronjob -n {{ns}}
+
+  echo "=== CI: waiting for job to complete ==="
+  kubectl wait --for=condition=complete job/ci-harvest -n {{ns}} --timeout=300s || {
+    echo "Job failed — pod logs:"
+    kubectl logs -l app=harvest-cronjob -n {{ns}} --tail=50
+    exit 1
+  }
+
+  echo "=== CI: dumping consultations table ==="
+  POD=$(kubectl get pod -l app=mariadb -n {{ns}} -o jsonpath='{.items[0].metadata.name}')
+  mkdir -p dist
+  kubectl exec -n {{ns}} "$POD" -- \
+    mariadb-dump -uroot -pharvest harvest consultations \
+    | gzip > dist/consultations.sql.gz
+
+  echo "=== CI: validating dump ==="
+  gunzip -c dist/consultations.sql.gz | head -20 || true
+  ROWS=$(gunzip -c dist/consultations.sql.gz | grep -c 'INSERT INTO' || echo 0)
+  echo "Rows found: $ROWS"
+  if [ "$ROWS" -eq 0 ]; then
+    echo "ERROR: dump contains no INSERT statements"
+    exit 1
+  fi
+  echo "=== CI: PASSED ==="

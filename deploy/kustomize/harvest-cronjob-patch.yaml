@@ -1,0 +1,11 @@
+- op: add
+  path: /spec/jobTemplate/spec/template/spec/containers/0/env
+  value:
+    - name: MYSQL_HOST
+      value: mariadb
+    - name: MYSQL_USER
+      value: root
+    - name: MYSQL_PWD
+      value: harvest
+    - name: MYSQL_DATABASE
+      value: harvest

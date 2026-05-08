@@ -170,3 +170,4 @@ cython_debug/
 
 # Ignore DevSpace cache and log folder
 .devspace/
+deploy/helm/
