@@ -18,12 +18,12 @@ jobs:
   ci-release:
     runs-on: ubuntu-24.04
     steps:
-      # actions/checkout@v5
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+      # actions/checkout@v6.0.2 (Node 24)
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
-      # jdx/mise-action@v2
+      # jdx/mise-action@v4.0.1 (Node 24)
       - name: Setup mise
-        uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151
 
       - name: Read project version
         id: version
@@ -44,24 +44,24 @@ jobs:
         if: github.ref_type != 'tag'
         run: docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }} .
 
-      # docker/login-action@v3
+      # docker/login-action@v4.1.0 (Node 24)
       - name: Login to GHCR
         if: github.ref_type == 'tag'
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # docker/setup-buildx-action@v3
+      # docker/setup-buildx-action@v4.0.0 (Node 24)
       - name: Set up Docker Buildx
         if: github.ref_type == 'tag'
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd
 
-      # docker/build-push-action@v6
+      # docker/build-push-action@v7.1.0 (Node 24)
       - name: Publish image
         if: github.ref_type == 'tag'
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f
         with:
           context: .
           platforms: linux/amd64,linux/arm64
