@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: harvest-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "harvest-consultations.labels" . | nindent 4 }}
+data:
+  harvest.sql: |
+{{ .Files.Get "harvest.sql" | indent 4 }}

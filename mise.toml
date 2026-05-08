@@ -1,0 +1,5 @@
+[tools]
+duckdb = "latest"
+helm = "latest"
+kind = "latest"
+kubectl = "latest"

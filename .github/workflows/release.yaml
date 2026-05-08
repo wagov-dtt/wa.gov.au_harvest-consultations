@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup mise
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
+        with:
+          install: true
+          cache: true
+
+      - name: Install just
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+
+      - name: Generate and package helm chart
+        run: |
+          just helm-generate
+          # Set chart version from git tag (strip leading 'v'), fallback to 0.0.0-dev for manual runs
+          CHART_VERSION="${GITHUB_REF_NAME#v}"
+          if [ -z "$CHART_VERSION" ] || [ "$CHART_VERSION" = "$GITHUB_REF_NAME" ]; then
+            CHART_VERSION="0.0.0-dev"
+          fi
+          sed -i "s/^version:.*/version: ${CHART_VERSION}/" chart/Chart.yaml
+          helm package chart -d dist/
+          echo "CHART_FILE=$(ls dist/*.tgz)" >> $GITHUB_ENV
+
+      - name: Push to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io --username "${{ github.actor }}" --password-stdin
+          helm push "${{ env.CHART_FILE }}" oci://ghcr.io/${{ github.repository_owner }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        with:
+          files: dist/*.tgz
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
