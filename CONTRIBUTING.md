@@ -3,9 +3,10 @@
 This repo aims to stay small and boring:
 
 - Single PHP CLI script for harvesting, normalisation, validation, and MySQL/MariaDB export.
+- No PHP package manager/runtime dependencies; use PHP built-ins plus PDO MySQL.
 - Docker image for execution.
 - kustomize for local/CI Kubernetes.
-- helmify-generated Helm chart for production installs.
+- Helm chart generated into `dist/helm` for releases; generated chart output is not committed.
 
 ## Setup
 
@@ -23,7 +24,7 @@ DB_NAME='harvest_consultations'
 DB_TABLE='consultations'
 ```
 
-`k8s/local` overrides `DB_HOST=mariadb` and runs a local MariaDB StatefulSet.
+`k8s/local` overrides `DB_HOST=mariadb` and runs a local MariaDB StatefulSet. `DB_TABLE` defaults to `consultations` and must be a MySQL identifier.
 
 ## Daily commands
 
@@ -32,10 +33,8 @@ just check         # PHP syntax + Helm render/lint + docker build
 just cluster-smoke # kind + kustomize + MariaDB readiness, no harvest API run
 just ci-dump       # kind + harvest Job + verified dump artifact
 just verify-dump   # check dist/sql.tar.gz shape
-just helmify       # regenerate public Helm chart from kustomize output
-just chart-test    # regenerate, lint, and render Helm chart
-just install-cron  # helm upgrade --install with values.prod.yaml
-just clean         # delete local containers/kind cluster
+just helmify       # generate public Helm chart into dist/helm
+just clean         # delete local kind cluster/temp env/chart files
 ```
 
 ## Local/CI artifact build
@@ -44,7 +43,7 @@ just clean         # delete local containers/kind cluster
 just ci-dump
 ```
 
-This creates/reuses a local kind cluster, builds/imports the image, applies `k8s/local` into a fresh namespace, waits for the harvest Job, dumps MariaDB, verifies the dump can be read back, and writes:
+This creates/reuses a local kind cluster, builds/imports the image, applies `k8s/local`, creates a one-shot `harvest-run` Job from the CronJob template, dumps MariaDB, verifies the dump can be read back, and writes:
 
 ```text
 dist/sql.tar.gz
@@ -60,33 +59,21 @@ The source of truth is plain Kubernetes YAML under `k8s/base` plus kustomize ove
 just helmify
 ```
 
-This runs:
-
-```bash
-kustomize build --load-restrictor LoadRestrictionsNone k8s/public | helmify -original-name charts/harvest-consultations
-```
-
-Do not hand-edit generated chart templates unless you also accept that `just helmify` may overwrite them.
-
-## Production/EKS install
-
-Best publishing target: **GHCR for both image and Helm chart**.
-
-Why:
-
-- one registry/auth model,
-- Helm 3 supports OCI charts natively,
-- no GitHub Pages/index.yaml to maintain,
-- EKS can pull the container image from GHCR using normal image pull secrets if the package is private.
-
-Published artifacts:
+This writes the generated chart to:
 
 ```text
-ghcr.io/wagov-dtt/harvest-consultations:<semver>
+dist/helm/harvest-consultations
+```
+
+CI packages that generated chart on semver tags and publishes it to:
+
+```text
 oci://ghcr.io/wagov-dtt/charts/harvest-consultations
 ```
 
-Install from a target cluster context. First create/update the runtime secret from dotenv values:
+## Production/EKS install
+
+Create/update the runtime secret from dotenv values:
 
 ```bash
 kubectl create namespace harvest --dry-run=client -o yaml | kubectl apply -f -
@@ -104,21 +91,11 @@ helm upgrade --install harvest-consultations \
   -f values.prod.yaml
 ```
 
-Minimal `values.prod.yaml` for the helmified chart:
+Minimal `values.prod.yaml`:
 
 ```yaml
 harvestConsultations:
-  harvest:
-    image:
-      repository: ghcr.io/wagov-dtt/harvest-consultations
-      tag: 0.4.1
   schedule: "0 18 * * *"
-```
-
-For a quick install from this checkout, create `values.prod.yaml` and run:
-
-```bash
-just install-cron values.prod.yaml
 ```
 
 ## Pinning and upgrade policy
@@ -129,38 +106,9 @@ just install-cron values.prod.yaml
 - Keep exact Kubernetes node-image pins for kind because `kindest/node` tags are published per Kubernetes patch release.
 - Run `just check` and `just cluster-smoke` for routine upgrades; run `just ci-dump` before release or when cluster/dump behaviour changes.
 
-## One-month maintainability plan
-
-Highest-value work that keeps the current cluster-packaged-job design:
-
-### Week 1: make failures obvious
-
-1. Keep `just check` as the default fast local gate.
-2. Use `just cluster-smoke` for Kubernetes/MariaDB wiring without the slow API harvest.
-3. Keep `just ci-dump` as the canonical full artifact build, with bounded waits and diagnostics.
-4. Keep the artifact as `dist/sql.tar.gz` containing a `mysqldump`/`mariadb-dump` compatible `sql.sql`.
-
-### Week 2: reduce release and chart drift
-
-1. Keep kustomize as the local/CI source of truth and regenerate/lint/render the Helm chart in CI.
-2. Keep GitHub Actions SHA-pinned and refresh SHAs against the reviewed major tags during routine maintenance.
-3. Publish only semver-tagged image/chart releases; use `test` tags only for CI-local execution.
-
-### Week 3: harden runtime safety
-
-1. Fail closed before export: reject empty outputs, invalid identifiers, malformed portal config, bad response shapes, and invalid transformed data.
-2. Keep Kubernetes resource/security defaults current for both Job and CronJob.
-3. Keep local kind state disposable so Secret/DB drift cannot affect artifact builds.
-
-### Week 4: make operation easier
-
-1. Add a short runbook for debugging failed `ci-dump` diagnostics.
-2. Document the expected `sql.tar.gz` restore command for artifact consumers.
-3. Prefer small docs/check improvements over new execution paths: update README/CONTRIBUTING when commands or release flow change.
-
 ## Code style
 
-- Prefer direct, boring Python with explicit data flow.
+- Prefer direct, boring PHP with explicit data flow.
 - Keep dependencies minimal.
 - Put data-shaping logic in SQL when clearer.
 - Add focused tests for parsing, transforms, and regressions.

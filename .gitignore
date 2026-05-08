@@ -5,6 +5,7 @@
 *.db.wal
 logs/
 dist/
+vendor/
 
 # IDE/Tools
 .idea/

@@ -6,6 +6,7 @@ WORKDIR /app
 ENV HOME=/tmp
 
 COPY harvest.php ./harvest.php
+COPY sql ./sql
 
 USER 10001:10001
 

@@ -1,15 +1,13 @@
 set dotenv-load
 
-app_version := `sed -n 's/^appVersion: "\(.*\)"/\1/p' charts/harvest-consultations/Chart.yaml`
+app_version := `cat VERSION`
 image := "harvest-consultations"
 cluster := "harvest-consultations"
 namespace := "harvest"
 dump_dir := "dist"
 dump_file := "sql.tar.gz"
-registry := "ghcr.io/wagov-dtt"
-chart := "charts/harvest-consultations"
+generated_chart := "dist/helm/harvest-consultations"
 kind_node_image := "kindest/node:v1.35.1"
-mariadb_image := "mariadb:11"
 
 # List commands
 default:
@@ -24,20 +22,6 @@ check: test chart-test build
 # Build container image
 build:
   docker build -t {{image}}:test .
-
-# Build image, run with local Docker MariaDB, show results
-test-full: build _mysql
-  docker run --rm --network host --env-file .env \
-    -e DB_HOST="127.0.0.1" {{image}}:test
-  docker run --rm --network host --env-file .env \
-    -e DB_HOST="127.0.0.1" {{image}}:test php /app/harvest.php stats
-
-# Build and push semver-tagged multi-platform image
-publish:
-  docker buildx build . \
-    --tag {{registry}}/{{image}}:{{app_version}} \
-    --platform linux/amd64,linux/arm64 \
-    --push
 
 # Create/reuse the local kind cluster
 cluster-up:
@@ -68,6 +52,7 @@ local-env:
     printf 'DB_PASSWORD=%s\n' "$(clean "${DB_PASSWORD:-secret}")"
     printf 'DB_NAME=%s\n' "$(clean "${DB_NAME:-harvest_consultations}")"
     printf 'DB_TABLE=%s\n' "$(clean "${DB_TABLE:-consultations}")"
+    printf 'DB_PORT=%s\n' "$(clean "${DB_PORT:-3306}")"
     if [[ -n "${DB_USER:-}" ]]; then printf 'DB_USER=%s\n' "$(clean "$DB_USER")"; fi
   } > .k8s.env
 
@@ -83,7 +68,7 @@ cluster-smoke: build deploy-db wait-db
 deploy-db: local-env cluster-reset load-image
   kustomize build --load-restrictor LoadRestrictionsNone k8s/local-db | kubectl apply -f -
 
-# Apply the full local overlay and run the harvest Job
+# Apply the full local overlay and run a one-shot Job from the CronJob template
 deploy-local: deploy-db wait-db run-job
 
 # Wait until the local MariaDB pod accepts SQL connections
@@ -109,6 +94,7 @@ run-job:
   set -euo pipefail
   kubectl -n {{namespace}} delete job harvest-run --ignore-not-found=true --wait=true
   kustomize build --load-restrictor LoadRestrictionsNone k8s/local | kubectl apply -f -
+  kubectl -n {{namespace}} create job harvest-run --from=cronjob/harvest-consultations
   just wait-job
 
 # Wait for the harvest Job and print diagnostics on failure
@@ -155,6 +141,7 @@ dump-debug:
   kubectl -n {{namespace}} get pods,jobs,statefulsets,services
   kubectl -n {{namespace}} get events --sort-by=.lastTimestamp | tail -50
   kubectl -n {{namespace}} describe pod mariadb-0
+  kubectl -n {{namespace}} describe cronjob harvest-consultations
   kubectl -n {{namespace}} describe job harvest-run
   kubectl -n {{namespace}} logs job/harvest-run --all-containers=true --tail=-1
   echo "--- end diagnostics ---" >&2
@@ -194,8 +181,8 @@ dump-db:
       mariadb -uroot < /tmp/verify.sql
     '
   row_count="$(kubectl -n {{namespace}} exec pod/mariadb-0 -- \
-    env DB_NAME="$db_name" DB_TABLE="$db_table" sh -ceu \
-    'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb -uroot -Nse "SELECT COUNT(*) FROM \`$DB_NAME\`.\`$DB_TABLE\`"')"
+    env DB_NAME="$db_name" TABLE_NAME="$db_table" sh -ceu \
+    'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb -uroot -Nse "SELECT COUNT(*) FROM \`$DB_NAME\`.\`$TABLE_NAME\`"')"
   test "${row_count}" -gt 0
 
   tar -C {{dump_dir}} -czf {{dump_dir}}/{{dump_file}} sql.sql
@@ -220,13 +207,16 @@ verify-dump:
   grep -q 'CREATE TABLE' "$tmp"
   grep -q "\`$db_table\`" "$tmp"
 
-# Regenerate public Helm chart from kustomize output
+# Generate public Helm chart from kustomize output
 helmify:
   #!/usr/bin/env bash
   set -euo pipefail
-  rm -rf {{chart}}
-  kustomize build --load-restrictor LoadRestrictionsNone k8s/public | helmify -original-name {{chart}}
-  cat > {{chart}}/Chart.yaml <<'CHART'
+  rm -rf {{generated_chart}}
+  mkdir -p "$(dirname {{generated_chart}})"
+  kustomize build --load-restrictor LoadRestrictionsNone k8s/public \
+    | sed -E 's#ghcr.io/wagov-dtt/harvest-consultations(:[^[:space:]]*)?#ghcr.io/wagov-dtt/harvest-consultations:{{app_version}}#' \
+    | helmify -original-name {{generated_chart}}
+  cat > {{generated_chart}}/Chart.yaml <<'CHART'
   apiVersion: v2
   name: harvest-consultations
   description: Harvest WA Gov consultations into MySQL/MariaDB
@@ -237,30 +227,11 @@ helmify:
 
 # Lint/render the generated Helm chart
 chart-test: helmify
-  helm lint {{chart}}
-  helm template harvest-consultations {{chart}} >/dev/null
-
-# Install/refresh scheduled CronJob into the current Kubernetes context with Helm
-install-cron values="values.prod.yaml": helmify
-  kubectl create namespace {{namespace}} --dry-run=client -o yaml | kubectl apply -f -
-  kubectl -n {{namespace}} create secret generic harvest-env --from-env-file=.env --dry-run=client -o yaml | kubectl apply -f -
-  helm upgrade --install harvest-consultations {{chart}} \
-    --namespace {{namespace}} --create-namespace \
-    -f {{values}}
-
-# Create/update GitHub Actions environment secrets from local .env
-setup-github-secrets environment="nightly":
-  gh api --method PUT repos/:owner/:repo/environments/{{environment}} >/dev/null
-  gh secret set --env {{environment}} --env-file .env
+  helm lint {{generated_chart}}
+  helm template harvest-consultations {{generated_chart}} >/dev/null
 
 # Stop services
 clean:
-  -docker stop harvest-mysql 2>/dev/null
-  -docker rm harvest-mysql 2>/dev/null
   -kind delete cluster --name {{cluster}} 2>/dev/null
   -rm -f .k8s.env
-
-_mysql:
-  @docker start harvest-mysql 2>/dev/null || docker run -d --name harvest-mysql \
-    -e MARIADB_ROOT_PASSWORD=${DB_PASSWORD:-secret} -p 3306:3306 {{mariadb_image}}
-  @until docker exec harvest-mysql sh -ceu 'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb -uroot -h 127.0.0.1 -e "SELECT 1" >/dev/null'; do sleep 1; done
+  -rm -rf dist/helm

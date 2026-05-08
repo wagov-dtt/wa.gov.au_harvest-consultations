@@ -1,6 +1,0 @@
-apiVersion: v2
-name: harvest-consultations
-description: Harvest WA Gov consultations into MySQL/MariaDB
-type: application
-version: 0.4.1
-appVersion: "0.4.1"

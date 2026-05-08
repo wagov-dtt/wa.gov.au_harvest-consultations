@@ -2,9 +2,10 @@ namespace: harvest
 resources:
   - namespace.yaml
   - ../base/mariadb.yaml
-  - ../base/job.yaml
+  - ../base/cronjob.yaml
 images:
-  - name: harvest-consultations
+  - name: ghcr.io/wagov-dtt/harvest-consultations
+    newName: harvest-consultations
     newTag: test
 secretGenerator:
   - name: harvest-env

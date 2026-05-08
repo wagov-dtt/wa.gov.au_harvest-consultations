@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 const DEFAULT_DB_NAME = 'harvest_consultations';
 const DEFAULT_DB_TABLE = 'consultations';
-const DEFAULT_REGION = 'Western Australia';
-const DEFAULT_AGENCY = 'Government of Western Australia';
+const SQL_FILE = __DIR__ . '/sql/harvest.sql';
 
 function config(): array
 {
@@ -22,8 +21,8 @@ function config(): array
 
 function env_value(string $key, string $default = ''): string
 {
-    $value = getenv($key);
-    return trim($value === false ? $default : $value, "'\"");
+    $value = $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key);
+    return trim($value === false || $value === null ? $default : (string)$value, "'\"");
 }
 
 function mysql_identifier(string $key, string $value): string
@@ -87,34 +86,88 @@ function qid(string $identifier): string
     return '`' . str_replace('`', '``', $identifier) . '`';
 }
 
+function sql(string $name, array $vars = []): string
+{
+    static $statements = null;
+    $statements ??= load_sql(SQL_FILE);
+
+    if (!isset($statements[$name])) {
+        throw new RuntimeException("SQL statement not found: $name");
+    }
+
+    $query = $statements[$name];
+    foreach ($vars as $key => $value) {
+        $query = str_replace('{{' . $key . '}}', (string)$value, $query);
+    }
+    if (preg_match('/{{[A-Za-z0-9_]+}}/', $query, $matches)) {
+        throw new RuntimeException("SQL statement $name has unset placeholder {$matches[0]}");
+    }
+
+    return $query;
+}
+
+function load_sql(string $path): array
+{
+    $contents = @file_get_contents($path);
+    if ($contents === false) {
+        throw new RuntimeException("SQL file not readable: $path");
+    }
+
+    $parts = preg_split('/^--\s*name:\s*([A-Za-z][A-Za-z0-9_]*)\s*$/m', $contents, -1, PREG_SPLIT_DELIM_CAPTURE);
+    if ($parts === false || count($parts) < 3) {
+        throw new RuntimeException("SQL file has no named statements: $path");
+    }
+
+    $statements = [];
+    for ($i = 1; $i < count($parts); $i += 2) {
+        $name = trim($parts[$i]);
+        $query = trim($parts[$i + 1] ?? '');
+        if ($query === '') {
+            throw new RuntimeException("SQL statement is empty: $name");
+        }
+        $statements[$name] = $query;
+    }
+
+    return $statements;
+}
+
 function http_get(string $url, array $headers = []): string
 {
-    $headers[] = 'User-Agent: harvest-consultations/1.0';
+    $headerLines = ['User-Agent: harvest-consultations/1.0'];
+    foreach ($headers as $name => $value) {
+        $headerLines[] = $name . ': ' . $value;
+    }
+
     $context = stream_context_create([
         'http' => [
             'method' => 'GET',
-            'header' => implode("\r\n", $headers),
+            'header' => implode("\r\n", $headerLines),
             'timeout' => 30,
             'ignore_errors' => true,
         ],
     ]);
-
     $body = @file_get_contents($url, false, $context);
     if ($body === false) {
-        throw new RuntimeException("GET failed: $url");
+        $error = error_get_last()['message'] ?? 'unknown error';
+        throw new RuntimeException("GET failed: $url ($error)");
     }
 
-    $status = 0;
-    foreach (($http_response_header ?? []) as $header) {
-        if (preg_match('/^HTTP\/\S+\s+(\d{3})\b/', $header, $matches)) {
-            $status = (int)$matches[1];
-        }
-    }
+    $status = http_status($http_response_header ?? []);
     if ($status < 200 || $status >= 300) {
-        throw new RuntimeException("GET $url returned HTTP $status");
+        throw new RuntimeException("GET failed: $url (HTTP $status)");
     }
 
     return $body;
+}
+
+function http_status(array $headers): int
+{
+    foreach ($headers as $header) {
+        if (preg_match('/^HTTP\/\S+\s+(\d{3})\b/', $header, $matches)) {
+            return (int)$matches[1];
+        }
+    }
+    return 0;
 }
 
 function http_json(string $url, array $headers = []): mixed
@@ -141,104 +194,23 @@ function text_or_null(mixed $value): ?string
     return is_scalar($value) ? (string)$value : json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 }
 
-function parse_date(?string $value): ?string
-{
-    if ($value === null || trim($value) === '') {
-        return null;
-    }
-    $timestamp = strtotime($value);
-    return $timestamp === false ? null : gmdate('Y-m-d', $timestamp);
-}
-
-function engagementhq_status(?string $state, string $tags): string
-{
-    $tags = strtolower($tags);
-    $state = strtolower($state ?? 'unknown');
-    if (str_contains($tags, 'close')) {
-        return 'closed';
-    }
-    if ($state === 'published') {
-        return 'open';
-    }
-    if ($state === 'archived') {
-        return 'closed';
-    }
-    return $state;
-}
-
-function engagementhq_agency(string $url, ?string $parentId, string $tags): string
-{
-    $url = strtolower($url);
-    $tags = strtolower($tags);
-    if (str_contains($url, 'engageagric.engagementhq.com') || str_contains($url, 'yoursay.dpird.wa.gov.au')) {
-        return 'Department of Primary Industries and Regional Development';
-    }
-    if (str_contains($url, 'haveyoursaywa.engagementhq.com')) {
-        return 'Department of Planning, Lands and Heritage';
-    }
-    if ($parentId === '38135' || str_contains($tags, 'dot')) {
-        return 'Department of Transport';
-    }
-    if ($parentId === '37726' || str_contains($tags, 'mrwa') || str_contains($tags, 'main roads')) {
-        return 'Main Roads Western Australia';
-    }
-    if ($parentId === '38267' || str_contains($tags, 'metronet')) {
-        return 'METRONET';
-    }
-    if ($parentId === '37724' || str_contains($tags, 'westport')) {
-        return 'Westport';
-    }
-    if ($parentId === '37725' || str_contains($tags, 'transperth')) {
-        return 'Transperth';
-    }
-    if (str_contains($tags, 'pta')) {
-        return 'Public Transport Authority';
-    }
-    return DEFAULT_AGENCY;
-}
-
-function citizenspace_agency(?string $url, ?string $department): string
-{
-    $url = strtolower($url ?? '');
-    if (str_contains($url, 'consultation.health.wa.gov.au')) {
-        return 'Department of Health';
-    }
-    if (str_contains($url, 'consult.dwer.wa.gov.au')) {
-        return 'Department of Water and Environmental Regulation';
-    }
-    if (str_contains($url, 'consultation.dmirs.wa.gov.au')) {
-        return 'Department of Energy, Mines, Industry Regulation and Safety';
-    }
-    return $department ?: DEFAULT_AGENCY;
-}
-
 function create_stage(PDO $pdo): void
 {
-    $pdo->exec(<<<'SQL'
-CREATE TEMPORARY TABLE consultations_stage (
-  source VARCHAR(32) NOT NULL,
-  id VARCHAR(255) NOT NULL,
-  name TEXT NULL,
-  description TEXT NULL,
-  status VARCHAR(32) NULL,
-  tags TEXT NULL,
-  agency TEXT NULL,
-  region TEXT NULL,
-  url TEXT NULL,
-  publishdate DATE NULL,
-  expirydate DATE NULL
-)
-SQL);
+    $pdo->exec(sql('create_stage'));
 }
 
 function insert_statement(PDO $pdo): PDOStatement
 {
-    return $pdo->prepare(<<<'SQL'
-INSERT INTO consultations_stage
-(source, id, name, description, status, tags, agency, region, url, publishdate, expirydate)
-VALUES
-(:source, :id, :name, :description, :status, :tags, :agency, :region, :url, :publishdate, :expirydate)
-SQL);
+    return $pdo->prepare(sql('insert_stage'));
+}
+
+function normalize_stage(PDO $pdo): void
+{
+    $pdo->exec(sql('drop_normalized_stage'));
+    $pdo->exec(sql('drop_agency_rules'));
+    $pdo->exec(sql('create_agency_rules'));
+    $pdo->exec(sql('insert_agency_rules'));
+    $pdo->exec(sql('create_normalized_stage'));
 }
 
 function harvest_engagementhq(array $cfg, PDOStatement $insert): int
@@ -252,7 +224,7 @@ function harvest_engagementhq(array $cfg, PDOStatement $insert): int
                 continue;
             }
 
-            $payload = http_json($url . '/api/v2/projects?per_page=10000', ["Authorization: Bearer $token"]);
+            $payload = http_json($url . '/api/v2/projects?per_page=10000', ['Authorization' => "Bearer $token"]);
             $rows = is_array($payload) && is_array($payload['data'] ?? null) ? $payload['data'] : [];
             foreach ($rows as $row) {
                 if (!is_array($row)) {
@@ -270,13 +242,13 @@ function harvest_engagementhq(array $cfg, PDOStatement $insert): int
                     'id' => text_or_null($row['id'] ?? '') ?? '',
                     'name' => text_or_null($attrs['name'] ?? $row['name'] ?? null),
                     'description' => text_or_null($attrs['description'] ?? $row['description'] ?? null),
-                    'status' => engagementhq_status(text_or_null($attrs['state'] ?? $row['state'] ?? null), $tags),
+                    'raw_status' => text_or_null($attrs['state'] ?? $row['state'] ?? null),
                     'tags' => $tags === '' ? null : $tags,
-                    'agency' => engagementhq_agency($recordUrl, $parentId, $tags),
-                    'region' => DEFAULT_REGION,
+                    'parent_id' => $parentId,
+                    'department' => null,
                     'url' => $recordUrl,
-                    'publishdate' => parse_date(text_or_null($attrs['published-at'] ?? $row['published-at'] ?? null)),
-                    'expirydate' => null,
+                    'publishdate_text' => text_or_null($attrs['published-at'] ?? $row['published-at'] ?? null),
+                    'expirydate_text' => null,
                 ]);
                 $count++;
             }
@@ -306,13 +278,13 @@ function harvest_citizenspace(array $cfg, PDOStatement $insert): int
                     'id' => text_or_null($row['id'] ?? '') ?? '',
                     'name' => text_or_null($row['title'] ?? null),
                     'description' => text_or_null($row['overview'] ?? null),
-                    'status' => strtolower(text_or_null($row['status'] ?? 'unknown') ?? 'unknown'),
+                    'raw_status' => text_or_null($row['status'] ?? 'unknown'),
                     'tags' => null,
-                    'agency' => citizenspace_agency($recordUrl, text_or_null($row['department'] ?? null)),
-                    'region' => DEFAULT_REGION,
+                    'parent_id' => null,
+                    'department' => text_or_null($row['department'] ?? null),
                     'url' => $recordUrl,
-                    'publishdate' => parse_date(text_or_null($row['startdate'] ?? null)),
-                    'expirydate' => parse_date(text_or_null($row['enddate'] ?? null)),
+                    'publishdate_text' => text_or_null($row['startdate'] ?? null),
+                    'expirydate_text' => text_or_null($row['enddate'] ?? null),
                 ]);
                 $count++;
             }
@@ -330,17 +302,17 @@ function scalar(PDO $pdo, string $sql): int
 
 function validate_stage(PDO $pdo): int
 {
-    $valid = scalar($pdo, "SELECT COUNT(*) FROM consultations_stage WHERE status IN ('open', 'closed')");
+    $valid = scalar($pdo, sql('stage_valid_rows'));
     if ($valid === 0) {
-        throw new RuntimeException('consultations_stage has no open/closed rows; refusing to export');
+        throw new RuntimeException('consultations_normalized has no open/closed rows; refusing to export');
     }
 
-    if (scalar($pdo, "SELECT COUNT(*) FROM consultations_stage WHERE status IN ('open', 'closed') AND (source IS NULL OR id IS NULL OR id = '' OR name IS NULL OR status IS NULL OR url IS NULL)") > 0) {
-        throw new RuntimeException('consultations_stage contains null required values');
+    if (scalar($pdo, sql('stage_null_required_rows')) > 0) {
+        throw new RuntimeException('consultations_normalized contains null required values');
     }
 
-    if (scalar($pdo, "SELECT COUNT(*) FROM (SELECT source, id FROM consultations_stage WHERE status IN ('open', 'closed') GROUP BY source, id HAVING COUNT(*) > 1) duplicates") > 0) {
-        throw new RuntimeException('consultations_stage contains duplicate source/id keys');
+    if (scalar($pdo, sql('stage_duplicate_source_id_rows')) > 0) {
+        throw new RuntimeException('consultations_normalized contains duplicate source/id keys');
     }
 
     return $valid;
@@ -348,7 +320,7 @@ function validate_stage(PDO $pdo): int
 
 function table_exists(PDO $pdo, string $table): bool
 {
-    $stmt = $pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = :table');
+    $stmt = $pdo->prepare(sql('table_exists'));
     $stmt->execute(['table' => $table]);
     return (int)$stmt->fetchColumn() > 0;
 }
@@ -357,40 +329,27 @@ function export_final(PDO $pdo, string $table): int
 {
     $new = mysql_identifier('DB_TABLE', $table . '_new');
     $old = mysql_identifier('DB_TABLE', $table . '_old');
+    $ids = [
+        'table' => qid($table),
+        'new_table' => qid($new),
+        'old_table' => qid($old),
+    ];
 
-    $pdo->exec('DROP TABLE IF EXISTS ' . qid($new));
-    $pdo->exec('CREATE TABLE ' . qid($new) . " (
-  source VARCHAR(32) NOT NULL,
-  id VARCHAR(255) NOT NULL,
-  name TEXT NOT NULL,
-  description TEXT NULL,
-  status VARCHAR(32) NOT NULL,
-  tags TEXT NULL,
-  agency TEXT NULL,
-  region TEXT NULL,
-  url TEXT NOT NULL,
-  publishdate DATE NULL,
-  expirydate DATE NULL,
-  loaded_at TIMESTAMP NOT NULL,
-  UNIQUE KEY source_id (source, id)
-) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    $pdo->exec(sql('drop_table_if_exists', ['table' => $ids['new_table']]));
+    $pdo->exec(sql('create_final', ['table' => $ids['new_table']]));
+    $pdo->exec(sql('insert_final', ['table' => $ids['new_table']]));
 
-    $pdo->exec('INSERT INTO ' . qid($new) . "
-SELECT source, id, name, description, status, tags, agency, region, url, publishdate, expirydate, CURRENT_TIMESTAMP
-FROM consultations_stage
-WHERE status IN ('open', 'closed')");
-
-    $count = scalar($pdo, 'SELECT COUNT(*) FROM ' . qid($new));
+    $count = scalar($pdo, sql('count_table', ['table' => $ids['new_table']]));
     if ($count === 0) {
         throw new RuntimeException('final table has no rows; refusing to export');
     }
 
-    $pdo->exec('DROP TABLE IF EXISTS ' . qid($old));
+    $pdo->exec(sql('drop_table_if_exists', ['table' => $ids['old_table']]));
     if (table_exists($pdo, $table)) {
-        $pdo->exec('RENAME TABLE ' . qid($table) . ' TO ' . qid($old) . ', ' . qid($new) . ' TO ' . qid($table));
-        $pdo->exec('DROP TABLE ' . qid($old));
+        $pdo->exec(sql('rename_replace_export', $ids));
+        $pdo->exec(sql('drop_table', ['table' => $ids['old_table']]));
     } else {
-        $pdo->exec('RENAME TABLE ' . qid($new) . ' TO ' . qid($table));
+        $pdo->exec(sql('rename_first_export', $ids));
     }
 
     return $count;
@@ -399,7 +358,7 @@ WHERE status IN ('open', 'closed')");
 function init_db(array $cfg): void
 {
     $pdo = connect_mysql($cfg);
-    $pdo->exec('CREATE DATABASE IF NOT EXISTS ' . qid($cfg['db_name']) . ' DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+    $pdo->exec(sql('create_database', ['database' => qid($cfg['db_name'])]));
     echo "Database '{$cfg['db_name']}' ready\n";
 }
 
@@ -420,6 +379,9 @@ function run_harvest(array $cfg): void
     $cs = harvest_citizenspace($cfg, $insert);
     echo "  CitizenSpace: $cs records\n";
 
+    echo "Normalizing...\n";
+    normalize_stage($pdo);
+
     echo "Validating...\n";
     validate_stage($pdo);
 
@@ -428,31 +390,12 @@ function run_harvest(array $cfg): void
     echo "  Done: $count rows\n";
 }
 
-function stats(array $cfg): void
-{
-    $pdo = connect_mysql($cfg, $cfg['db_name']);
-    $table = qid($cfg['db_table']);
-    echo "\n=== {$cfg['db_name']}.{$cfg['db_table']} ===\n";
-    echo 'Total rows: ' . scalar($pdo, "SELECT COUNT(*) FROM $table") . "\n\n";
-
-    echo "By source/status:\n";
-    foreach ($pdo->query("SELECT source, status, COUNT(*) AS count FROM $table GROUP BY source, status") as $row) {
-        printf("  %-15s %-10s %s\n", $row['source'], $row['status'], $row['count']);
-    }
-
-    echo "\nSample rows:\n";
-    foreach ($pdo->query("SELECT source, id, LEFT(name, 50) AS name, status FROM $table LIMIT 5") as $row) {
-        printf("  %-15s %-10s %-50s %s\n", $row['source'], $row['id'], $row['name'], $row['status']);
-    }
-}
-
 try {
     $cfg = config();
     $command = $argv[1] ?? 'run';
     match ($command) {
         'run' => run_harvest($cfg),
         'init' => init_db($cfg),
-        'stats' => stats($cfg),
         default => run_harvest($cfg),
     };
 } catch (Throwable $exc) {

@@ -28,7 +28,7 @@ jobs:
       - name: Read project version
         id: version
         run: |
-          version="$(sed -n 's/^appVersion: "\(.*\)"/\1/p' charts/harvest-consultations/Chart.yaml)"
+          version="$(cat VERSION)"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             test "v${version}" = "${GITHUB_REF_NAME}"
@@ -39,9 +39,6 @@ jobs:
 
       - name: Chart render/lint
         run: just chart-test
-
-      - name: Check generated chart is committed
-        run: git diff --exit-code charts/harvest-consultations
 
       - name: Build image
         if: github.ref_type != 'tag'
@@ -73,7 +70,9 @@ jobs:
 
       - name: Package Helm chart
         if: github.ref_type == 'tag'
-        run: helm package charts/harvest-consultations --destination dist/charts
+        run: |
+          just helmify
+          helm package dist/helm/harvest-consultations --destination dist/charts
 
       - name: Push Helm chart to GHCR OCI
         if: github.ref_type == 'tag'
