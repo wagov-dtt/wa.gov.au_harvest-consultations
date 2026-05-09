@@ -73,6 +73,12 @@ just ci-test         # kind → helm install → harvest job → dump → valida
 | `mariadb.image.repository` | `mariadb` | MariaDB image |
 | `mariadb.image.tag` | `11` | MariaDB image tag |
 | `mariadb.storage.size` | `1Gi` | PVC size for MariaDB data |
+| `mariadb.storage.storageClassName` | (unset) | StorageClass for PVC (set to `"encrypted"` for at-rest encryption) |
+| `mariadb.resources.requests.memory` | `256Mi` | MariaDB memory request |
+| `mariadb.resources.requests.cpu` | `100m` | MariaDB CPU request |
+| `mariadb.resources.limits.memory` | `1Gi` | MariaDB memory limit |
+| `mariadb.resources.limits.cpu` | `1` | MariaDB CPU limit |
+| `networkPolicy.enabled` | `false` | Enable NetworkPolicy to restrict ingress to MariaDB |
 | `harvest.schedule` | `@hourly` | CronJob schedule |
 | `harvest.image.repository` | `duckdb/duckdb` | DuckDB image |
 | `harvest.image.tag` | `1.5.2` | DuckDB image tag |
@@ -86,5 +92,7 @@ just ci-test         # kind → helm install → harvest job → dump → valida
 | Path | Purpose |
 |------|---------|
 | `chart/harvest.sql` | SQL-only DuckDB harvest pipeline |
+| `chart/templates/secret.yaml` | Mariadb-credentials Secret (auto-generated from values) |
+| `chart/templates/networkpolicy.yaml` | Optional NetworkPolicy for MariaDB ingress isolation |
 | `chart/` | Helm chart (hand-written, source of truth) |
 | `justfile` | Dev/test/package commands |

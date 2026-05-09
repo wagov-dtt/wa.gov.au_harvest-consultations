@@ -72,7 +72,7 @@ ci-test:
   POD=$(kubectl get pod -l app=mariadb -n {{ns}} -o jsonpath='{.items[0].metadata.name}')
   mkdir -p dist
   kubectl exec -n {{ns}} "$POD" -- \
-    sh -c 'mariadb-dump -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" -h 127.0.0.1 harvest consultations' \
+    sh -c 'MYSQL_PWD="$MARIADB_PASSWORD" exec mariadb-dump -u"$MARIADB_USER" -h 127.0.0.1 harvest consultations' \
     | gzip > dist/consultations.sql.gz
 
   echo "=== CI: validating dump ==="

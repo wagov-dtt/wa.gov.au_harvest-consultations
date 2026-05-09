@@ -24,10 +24,18 @@ spec:
               resources:
                 {{- toYaml .Values.harvest.resources | nindent 16 }}
               securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                runAsGroup: 1000
+                allowPrivilegeEscalation: false
+                seccompProfile:
+                  type: RuntimeDefault
                 capabilities:
                   drop: ["ALL"]
                 readOnlyRootFilesystem: true
               env:
+                - name: HOME
+                  value: /tmp
                 - name: MYSQL_HOST
                   value: {{ .Values.mysql.host | quote }}
                 - name: MYSQL_USER
@@ -47,7 +55,7 @@ spec:
                   mountPath: /etc/config
                   readOnly: true
                 - name: duckdb-extensions
-                  mountPath: /root/.duckdb
+                  mountPath: /tmp
           restartPolicy: Never
           volumes:
             - name: config

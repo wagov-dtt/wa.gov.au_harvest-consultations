@@ -13,12 +13,24 @@ mariadb:
     tag: "11"
   storage:
     size: 1Gi
+    # storageClassName: "encrypted"  # uncomment for encrypted at-rest storage
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "1Gi"
+      cpu: "1"
+
+networkPolicy:
+  enabled: false  # requires a CNI that enforces NetworkPolicy (e.g. Calico, Cilium)
 
 harvest:
   schedule: "@hourly"
   image:
     repository: duckdb/duckdb
     tag: "1.5.2"
+    # digest: "sha256:..."  # pin to immutable digest for supply-chain assurance
   resources:
     requests:
       memory: "256Mi"

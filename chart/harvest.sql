@@ -9,10 +9,19 @@
 --                  to extract the anonymous JWT, then /api/v2/projects is read
 --                  with an HTTP Authorization header. No Python companion needed.
 
+-- Disable HTTP logging and secret exposure for production safety
+SET enable_http_logging = false;
+SET allow_unredacted_secrets = false;
+
 INSTALL httpfs;
 LOAD httpfs;
 INSTALL mysql;
 LOAD mysql;
+
+-- Lock down extension loading after required extensions are loaded
+SET allow_community_extensions = false;
+SET autoinstall_known_extensions = false;
+SET autoload_known_extensions = false;
 
 -- EngagementHQ pages can emit a new ETag while DuckDB is reading generated HTML.
 SET unsafe_disable_etag_checks = true;
