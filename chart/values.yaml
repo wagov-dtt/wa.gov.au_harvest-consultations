@@ -1,0 +1,28 @@
+mysql:
+  host: mariadb
+  database: harvest
+
+mariadb:
+  # rootPassword is only used for MariaDB initialization; the application and
+  # readiness probe connect via the dedicated user/password below.
+  rootPassword: harvest
+  user: harvest
+  password: harvest
+  image:
+    repository: mariadb
+    tag: "11"
+  storage:
+    size: 1Gi
+
+harvest:
+  schedule: "@hourly"
+  image:
+    repository: duckdb/duckdb
+    tag: "1.5.2"
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "1Gi"
+      cpu: "1"

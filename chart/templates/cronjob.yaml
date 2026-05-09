@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: harvest-cronjob
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "harvest-consultations.labels" . | nindent 4 }}
+    app: harvest-cronjob
+spec:
+  schedule: {{ .Values.harvest.schedule | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: harvest-cronjob
+        spec:
+          containers:
+            - name: harvest
+              image: "{{ .Values.harvest.image.repository }}:{{ .Values.harvest.image.tag }}"
+              imagePullPolicy: IfNotPresent
+              command: ["duckdb", "-c", ".read /etc/config/harvest.sql"]
+              resources:
+                {{- toYaml .Values.harvest.resources | nindent 16 }}
+              securityContext:
+                capabilities:
+                  drop: ["ALL"]
+                readOnlyRootFilesystem: true
+              env:
+                - name: MYSQL_HOST
+                  value: {{ .Values.mysql.host | quote }}
+                - name: MYSQL_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: mariadb-credentials
+                      key: MARIADB_USER
+                - name: MYSQL_PWD
+                  valueFrom:
+                    secretKeyRef:
+                      name: mariadb-credentials
+                      key: MARIADB_PASSWORD
+                - name: MYSQL_DATABASE
+                  value: {{ .Values.mysql.database | quote }}
+              volumeMounts:
+                - name: config
+                  mountPath: /etc/config
+                  readOnly: true
+                - name: duckdb-extensions
+                  mountPath: /root/.duckdb
+          restartPolicy: Never
+          volumes:
+            - name: config
+              configMap:
+                name: harvest-config
+            - name: duckdb-extensions
+              emptyDir: {}
