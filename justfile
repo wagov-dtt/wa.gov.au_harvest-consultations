@@ -1,4 +1,5 @@
 ns := "harvest-consultations"
+helmHost := "harvest-harvest-consultations-mariadb"
 
 default:
   just --choose
@@ -36,7 +37,7 @@ helm-generate:
 helm-install: helm-generate
   helm upgrade --install harvest deploy/helm/harvest-consultations \
     --namespace {{ns}} --create-namespace \
-    --set harvestCronjob.harvest.env.mysqlHost=harvest-harvest-consultations-mariadb
+    --set harvestCronjob.harvest.env.mysqlHost={{helmHost}}
 
 # Package helm chart
 helm-package: helm-generate
@@ -57,7 +58,7 @@ ci-test:
   just helm-generate
   helm upgrade --install harvest deploy/helm/harvest-consultations \
     --namespace {{ns}} --create-namespace \
-    --set harvestCronjob.harvest.env.mysqlHost=harvest-harvest-consultations-mariadb
+    --set harvestCronjob.harvest.env.mysqlHost={{helmHost}}
 
   echo "=== CI: waiting for MariaDB (up to 5 min) ==="
   kubectl wait --for=condition=ready pod -l app=mariadb -n {{ns}} --timeout=300s
@@ -77,7 +78,7 @@ ci-test:
   POD=$(kubectl get pod -l app=mariadb -n {{ns}} -o jsonpath='{.items[0].metadata.name}')
   mkdir -p dist
   kubectl exec -n {{ns}} "$POD" -- \
-    mariadb-dump -uroot -pharvest harvest consultations \
+    sh -c 'mariadb-dump -uroot -h 127.0.0.1 harvest consultations' \
     | gzip > dist/consultations.sql.gz
 
   echo "=== CI: validating dump ==="

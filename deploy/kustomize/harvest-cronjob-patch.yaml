@@ -4,8 +4,14 @@
     - name: MYSQL_HOST
       value: mariadb
     - name: MYSQL_USER
-      value: root
+      valueFrom:
+        secretKeyRef:
+          name: mariadb-credentials
+          key: MARIADB_USER
     - name: MYSQL_PWD
-      value: harvest
+      valueFrom:
+        secretKeyRef:
+          name: mariadb-credentials
+          key: MARIADB_PASSWORD
     - name: MYSQL_DATABASE
       value: harvest

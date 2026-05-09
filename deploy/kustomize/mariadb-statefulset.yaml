@@ -24,12 +24,41 @@ spec:
               name: mysql
           env:
             - name: MARIADB_ROOT_PASSWORD
-              value: harvest
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-credentials
+                  key: MARIADB_ROOT_PASSWORD
+            - name: MYSQL_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-credentials
+                  key: MARIADB_ROOT_PASSWORD
             - name: MARIADB_DATABASE
               value: harvest
+            - name: MARIADB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-credentials
+                  key: MARIADB_USER
+            - name: MARIADB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-credentials
+                  key: MARIADB_PASSWORD
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
           readinessProbe:
             exec:
-              command: ["mariadb-admin", "-uroot", "-pharvest", "-h", "127.0.0.1", "ping"]
+              command: ["mariadb-admin", "-uroot", "-h", "127.0.0.1", "ping"]
             initialDelaySeconds: 30
             periodSeconds: 5
             failureThreshold: 30
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

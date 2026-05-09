@@ -7,6 +7,13 @@ configMapGenerator:
     files:
       - harvest.sql
 
+secretGenerator:
+  - name: mariadb-credentials
+    literals:
+      - MARIADB_ROOT_PASSWORD=harvest
+      - MARIADB_USER=harvest
+      - MARIADB_PASSWORD=harvest
+
 resources:
   - namespace.yaml
   - mariadb-service.yaml
