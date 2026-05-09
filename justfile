@@ -90,3 +90,26 @@ ci-test:
     exit 1
   fi
   echo "=== CI: PASSED ==="
+
+# Check for newer versions of pinned GitHub Actions
+check-actions:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  echo "Checking pinned action versions..."
+  for f in .github/workflows/*.yaml; do
+    echo "  → $(basename "$f")"
+    grep -oP 'uses:\s+\K\S+@\S+' "$f" | sort -u | while read -r ref; do
+      repo="${ref%%@*}"
+      sha="${ref##*@}"
+      sha_short="${sha:0:7}"
+      latest_tag=$(gh api "repos/${repo}/releases/latest" --jq '.tag_name' 2>/dev/null) || latest_tag="unknown"
+      latest_sha=$(gh api "repos/${repo}/git/ref/tags/${latest_tag}" --jq '.object.sha' 2>/dev/null) || latest_sha="unknown"
+      if [ "$latest_sha" = "unknown" ]; then
+        echo "      ??? ${repo} (could not fetch latest)"
+      elif [[ "$sha" != "$latest_sha"* ]]; then
+        echo "      OUTDATED: ${repo} → ${latest_tag} (pinned: ${sha_short}, latest: ${latest_sha:0:7})"
+      else
+        echo "      OK: ${repo} @ ${latest_tag}"
+      fi
+    done
+  done
