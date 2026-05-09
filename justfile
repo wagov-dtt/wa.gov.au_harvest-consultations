@@ -103,7 +103,7 @@ check-actions:
       sha="${ref##*@}"
       sha_short="${sha:0:7}"
       latest_tag=$(gh api "repos/${repo}/releases/latest" --jq '.tag_name' 2>/dev/null) || latest_tag="unknown"
-      latest_sha=$(gh api "repos/${repo}/git/ref/tags/${latest_tag}" --jq '.object.sha' 2>/dev/null) || latest_sha="unknown"
+      latest_sha=$(gh api "repos/${repo}/commits/${latest_tag}" --jq '.sha' 2>/dev/null) || latest_sha="unknown"
       if [ "$latest_sha" = "unknown" ]; then
         echo "      ??? ${repo} (could not fetch latest)"
       elif [[ "$sha" != "$latest_sha"* ]]; then
