@@ -1,0 +1,6 @@
+ARG DUCKDB_VERSION=1.5.2
+FROM duckdb/duckdb:${DUCKDB_VERSION}
+ENV HOME=/
+SHELL ["/duckdb", "-c"]
+RUN INSTALL httpfs; INSTALL mysql;
+USER 1000:1000

@@ -13,9 +13,7 @@
 SET enable_http_logging = false;
 SET allow_unredacted_secrets = false;
 
-INSTALL httpfs;
 LOAD httpfs;
-INSTALL mysql;
 LOAD mysql;
 
 -- Lock down extension loading after required extensions are loaded

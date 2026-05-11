@@ -29,8 +29,8 @@ networkPolicy:
 harvest:
   schedule: "@hourly"
   image:
-    repository: duckdb/duckdb
-    tag: "1.5.2"
+    repository: ghcr.io/wagov-dtt/harvest-duckdb
+    tag: ""  # default: {chart-version}-duckdb{appVersion without dots}
     # digest: "sha256:..."  # pin to immutable digest for supply-chain assurance
   resources:
     requests:

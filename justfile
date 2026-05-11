@@ -1,9 +1,29 @@
 ns := "harvest-consultations"
 mysqlHost := "mariadb"
 table := "consultations"
+owner := "wagov-dtt"
+image := "harvest-duckdb"
+
+# Versions come from chart metadata. Docker image tags are derived, not stored.
+chart_version := `awk '/^version:/ {print $2; exit}' chart/Chart.yaml`
+duckdb_version := `awk '/^appVersion:/ {gsub(/"/, "", $2); print $2; exit}' chart/Chart.yaml`
+duckdb_short := `awk '/^appVersion:/ {gsub(/[".]/, "", $2); print $2; exit}' chart/Chart.yaml`
+image_tag := chart_version + "-duckdb" + duckdb_short
 
 default:
   just --choose
+
+# Bump chart/app versions. The Helm image tag is computed from Chart.yaml.
+# Usage: just bump-version 0.5.5           (same DuckDB)
+#        just bump-version 0.5.5 1.6.0     (new DuckDB)
+bump-version chart duckdb=duckdb_version:
+  @echo "=== chart: {{chart_version}} → {{chart}}"
+  @echo "=== duckdb: {{duckdb_version}} → {{duckdb}}"
+  sed -i 's/^version: .*/version: {{chart}}/' chart/Chart.yaml
+  sed -i 's/^appVersion: .*/appVersion: "{{duckdb}}"/' chart/Chart.yaml
+  sed -i 's/^ARG DUCKDB_VERSION=.*/ARG DUCKDB_VERSION={{duckdb}}/' Dockerfile
+  @echo "=== image tag: {{chart}}-duckdb{{replace(duckdb, ".", "")}}"
+  @echo "=== done — verify with: git diff"
 
 clean:
   kind delete cluster --name harvest || true
@@ -33,10 +53,22 @@ helm-install:
     --set mysql.host={{mysqlHost}} \
     --set mysql.table={{table}}
 
+# Build and push docker image.
+#   just docker-build                    → uses {chart-version}-duckdb{short}
+#   just docker-build edge               → tags as :edge
+#   just docker-build 0.5.6-duckdb170    → explicit tag
+docker-build tag=image_tag:
+  docker buildx build --platform linux/amd64,linux/arm64 \
+    --build-arg DUCKDB_VERSION="{{duckdb_version}}" \
+    -t "ghcr.io/{{owner}}/{{image}}:{{tag}}" --push .
+
+# Build release image with chart version from a git tag, without leading 'v'.
+docker-build-release chart: (docker-build chart + "-duckdb" + duckdb_short)
+
 # Package helm chart
-helm-package:
+helm-package version=chart_version:
   mkdir -p dist
-  helm package chart -d dist/
+  helm package chart --version "{{version}}" -d dist/
 
 # === CI / nightly validation ===
 

@@ -80,8 +80,8 @@ just ci-test         # kind → helm install → harvest job → dump → valida
 | `mariadb.resources.limits.cpu` | `1` | MariaDB CPU limit |
 | `networkPolicy.enabled` | `false` | Enable NetworkPolicy to restrict ingress to MariaDB |
 | `harvest.schedule` | `@hourly` | CronJob schedule |
-| `harvest.image.repository` | `duckdb/duckdb` | DuckDB image |
-| `harvest.image.tag` | `1.5.2` | DuckDB image tag |
+| `harvest.image.repository` | `ghcr.io/wagov-dtt/harvest-duckdb` | DuckDB image with extensions pre-installed |
+| `harvest.image.tag` | `""` | Image tag override; empty computes `{chart-version}-duckdb{appVersion without dots}` |
 | `harvest.resources.requests.memory` | `256Mi` | Harvest job memory request |
 | `harvest.resources.requests.cpu` | `100m` | Harvest job CPU request |
 | `harvest.resources.limits.memory` | `1Gi` | Harvest job memory limit |

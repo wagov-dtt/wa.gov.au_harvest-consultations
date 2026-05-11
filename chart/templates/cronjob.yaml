@@ -18,7 +18,7 @@ spec:
         spec:
           containers:
             - name: harvest
-              image: "{{ .Values.harvest.image.repository }}:{{ .Values.harvest.image.tag }}"
+              image: "{{ .Values.harvest.image.repository }}:{{ include "harvest-consultations.harvestImageTag" . }}"
               imagePullPolicy: IfNotPresent
               command: ["duckdb", "-c", ".read /etc/config/harvest.sql"]
               resources:
@@ -34,8 +34,6 @@ spec:
                   drop: ["ALL"]
                 readOnlyRootFilesystem: true
               env:
-                - name: HOME
-                  value: /tmp
                 - name: MYSQL_HOST
                   value: {{ .Values.mysql.host | quote }}
                 - name: MYSQL_USER
@@ -54,12 +52,8 @@ spec:
                 - name: config
                   mountPath: /etc/config
                   readOnly: true
-                - name: duckdb-extensions
-                  mountPath: /tmp
           restartPolicy: Never
           volumes:
             - name: config
               configMap:
                 name: harvest-config
-            - name: duckdb-extensions
-              emptyDir: {}
