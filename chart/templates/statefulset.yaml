@@ -37,20 +37,20 @@ spec:
             - name: MARIADB_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: mariadb-credentials
+                  name: db-credentials
                   key: MARIADB_ROOT_PASSWORD
             - name: MARIADB_DATABASE
-              value: {{ .Values.mysql.database | quote }}
+              value: {{ .Values.db.database | quote }}
             - name: MARIADB_USER
               valueFrom:
                 secretKeyRef:
-                  name: mariadb-credentials
-                  key: MARIADB_USER
+                  name: db-credentials
+                  key: DB_USER
             - name: MARIADB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: mariadb-credentials
-                  key: MARIADB_PASSWORD
+                  name: db-credentials
+                  key: DB_PASSWORD
           resources:
             {{- toYaml .Values.mariadb.resources | nindent 12 }}
           volumeMounts:

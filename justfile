@@ -1,5 +1,5 @@
 ns := "harvest-consultations"
-mysqlHost := "mariadb"
+dbHost := "mariadb"
 table := "consultations"
 owner := "wagov-dtt"
 image := "harvest-duckdb"
@@ -34,8 +34,8 @@ kind-up:
   kind get clusters | grep -q harvest || kind create cluster --name harvest
   helm upgrade --install harvest chart \
     --namespace {{ns}} --create-namespace \
-    --set mysql.host={{mysqlHost}} \
-    --set mysql.table={{table}}
+    --set db.host={{dbHost}} \
+    --set db.table={{table}}
 
 # Forward mariadb from k8s cluster
 mariadb-svc: kind-up
@@ -50,8 +50,8 @@ test: kind-up
 helm-install:
   helm upgrade --install harvest chart \
     --namespace {{ns}} --create-namespace \
-    --set mysql.host={{mysqlHost}} \
-    --set mysql.table={{table}}
+    --set db.host={{dbHost}} \
+    --set db.table={{table}}
 
 # Build and push docker image.
 #   just docker-build                    → uses {chart-version}-duckdb{short}
@@ -83,8 +83,8 @@ ci-test:
   echo "=== CI: installing helm chart ==="
   helm upgrade --install harvest chart \
     --namespace {{ns}} --create-namespace \
-    --set mysql.host={{mysqlHost}} \
-    --set mysql.table={{table}}
+    --set db.host={{dbHost}} \
+    --set db.table={{table}}
 
   echo "=== CI: waiting for MariaDB (up to 5 min) ==="
   kubectl rollout status statefulset/mariadb -n {{ns}} --timeout=300s

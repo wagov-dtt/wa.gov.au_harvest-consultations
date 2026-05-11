@@ -1,5 +1,5 @@
 -- harvest.sql — DuckDB SQL pipeline for harvesting consultations
--- Rendered by Helm so mysql.table can set the target table name.
+-- Rendered by Helm so db.table can set the target table name.
 -- MySQL target via DuckDB MySQL env vars: MYSQL_HOST, MYSQL_USER, MYSQL_PWD, MYSQL_DATABASE
 -- https://duckdb.org/docs/current/core_extensions/mysql#configuration
 --
@@ -242,5 +242,5 @@ ORDER BY source, status;
 --    Matches old/harvest.py export behaviour: replace the whole output table.
 -- ============================================================================
 ATTACH '' AS mysqldb (TYPE mysql);
-CREATE OR REPLACE TABLE mysqldb.{{ .Values.mysql.table }} AS
+CREATE OR REPLACE TABLE mysqldb.{{ .Values.db.table }} AS
 SELECT * FROM consultations_final;

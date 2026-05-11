@@ -1,17 +1,16 @@
-mysql:
+db:
   host: mariadb
   database: harvest
   table: consultations
+  user: harvest
+  password: harvest
 
 mariadb:
   # Enable only for local/dev installs. For production, use an external database
-  # and set mysql.host plus mariadb.user/password.
+  # and set db.host plus db.user/password.
   enabled: true
-  # rootPassword is only used when the bundled MariaDB StatefulSet is enabled;
-  # the application and readiness probe connect via the dedicated user/password below.
+  # rootPassword is only used when the bundled MariaDB StatefulSet is enabled.
   rootPassword: harvest
-  user: harvest
-  password: harvest
   image:
     repository: mariadb
     tag: "11"

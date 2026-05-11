@@ -35,19 +35,19 @@ spec:
                 readOnlyRootFilesystem: true
               env:
                 - name: MYSQL_HOST
-                  value: {{ .Values.mysql.host | quote }}
+                  value: {{ .Values.db.host | quote }}
                 - name: MYSQL_USER
                   valueFrom:
                     secretKeyRef:
-                      name: mariadb-credentials
-                      key: MARIADB_USER
+                      name: db-credentials
+                      key: DB_USER
                 - name: MYSQL_PWD
                   valueFrom:
                     secretKeyRef:
-                      name: mariadb-credentials
-                      key: MARIADB_PASSWORD
+                      name: db-credentials
+                      key: DB_PASSWORD
                 - name: MYSQL_DATABASE
-                  value: {{ .Values.mysql.database | quote }}
+                  value: {{ .Values.db.database | quote }}
               volumeMounts:
                 - name: config
                   mountPath: /etc/config
