@@ -1,5 +1,6 @@
 ns := "harvest-consultations"
-helmHost := "mariadb"
+mysqlHost := "mariadb"
+table := "consultations"
 
 default:
   just --choose
@@ -13,15 +14,12 @@ kind-up:
   kind get clusters | grep -q harvest || kind create cluster --name harvest
   helm upgrade --install harvest chart \
     --namespace {{ns}} --create-namespace \
-    --set mysql.host={{helmHost}}
+    --set mysql.host={{mysqlHost}} \
+    --set mysql.table={{table}}
 
 # Forward mariadb from k8s cluster
 mariadb-svc: kind-up
   ss -ltpn | grep 3306 || kubectl port-forward service/mariadb 3306:3306 -n {{ns}} & sleep 1
-
-# Run the DuckDB pipeline locally
-run:
-  duckdb -c ".read chart/harvest.sql"
 
 # Create a one-off test job in the cluster
 test: kind-up
@@ -32,7 +30,8 @@ test: kind-up
 helm-install:
   helm upgrade --install harvest chart \
     --namespace {{ns}} --create-namespace \
-    --set mysql.host={{helmHost}}
+    --set mysql.host={{mysqlHost}} \
+    --set mysql.table={{table}}
 
 # Package helm chart
 helm-package:
@@ -52,7 +51,8 @@ ci-test:
   echo "=== CI: installing helm chart ==="
   helm upgrade --install harvest chart \
     --namespace {{ns}} --create-namespace \
-    --set mysql.host={{helmHost}}
+    --set mysql.host={{mysqlHost}} \
+    --set mysql.table={{table}}
 
   echo "=== CI: waiting for MariaDB (up to 5 min) ==="
   kubectl rollout status statefulset/mariadb -n {{ns}} --timeout=300s
@@ -68,16 +68,16 @@ ci-test:
     exit 1
   }
 
-  echo "=== CI: dumping consultations table ==="
+  echo "=== CI: dumping {{table}} table ==="
   POD=$(kubectl get pod -l app=mariadb -n {{ns}} -o jsonpath='{.items[0].metadata.name}')
   mkdir -p dist
   kubectl exec -n {{ns}} "$POD" -- \
-    sh -c 'MYSQL_PWD="$MARIADB_PASSWORD" exec mariadb-dump -u"$MARIADB_USER" -h 127.0.0.1 harvest consultations' \
-    | gzip > dist/consultations.sql.gz
+    sh -c 'MYSQL_PWD="$MARIADB_PASSWORD" exec mariadb-dump -u"$MARIADB_USER" -h 127.0.0.1 harvest {{table}}' \
+    | gzip > dist/{{table}}.sql.gz
 
   echo "=== CI: validating dump ==="
-  gunzip -c dist/consultations.sql.gz | head -20 || true
-  ROWS=$(gunzip -c dist/consultations.sql.gz | grep -c 'INSERT INTO' || echo 0)
+  gunzip -c dist/{{table}}.sql.gz | head -20 || true
+  ROWS=$(gunzip -c dist/{{table}}.sql.gz | grep -c 'INSERT INTO' || echo 0)
   echo "Rows found: $ROWS"
   if [ "$ROWS" -eq 0 ]; then
     echo "ERROR: dump contains no INSERT statements"

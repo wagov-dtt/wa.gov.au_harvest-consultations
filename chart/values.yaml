@@ -1,6 +1,7 @@
 mysql:
   host: mariadb
   database: harvest
+  table: consultations
 
 mariadb:
   # rootPassword is only used for MariaDB initialization; the application and

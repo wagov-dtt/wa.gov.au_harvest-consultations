@@ -218,17 +218,15 @@ FROM engagementhq_raw;
 CREATE OR REPLACE TABLE consultations_final AS
 SELECT
     source,
-    id,
     name,
     description,
     status,
-    tags,
     agency,
+    tags,
     region,
     url,
     publishdate,
-    expirydate,
-    CURRENT_TIMESTAMP AS loaded_at
+    expirydate
 FROM (
     SELECT * FROM engagementhq_std
     UNION ALL BY NAME
@@ -246,5 +244,5 @@ ORDER BY source, status;
 --    Matches old/harvest.py export behaviour: replace the whole output table.
 -- ============================================================================
 ATTACH '' AS mysqldb (TYPE mysql);
-CREATE OR REPLACE TABLE mysqldb.consultations AS
+CREATE OR REPLACE TABLE mysqldb.{{ .Values.mysql.table }} AS
 SELECT * FROM consultations_final;
