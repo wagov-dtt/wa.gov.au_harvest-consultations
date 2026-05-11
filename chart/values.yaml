@@ -4,8 +4,11 @@ mysql:
   table: consultations
 
 mariadb:
-  # rootPassword is only used for MariaDB initialization; the application and
-  # readiness probe connect via the dedicated user/password below.
+  # Enable only for local/dev installs. For production, use an external database
+  # and set mysql.host plus mariadb.user/password.
+  enabled: true
+  # rootPassword is only used when the bundled MariaDB StatefulSet is enabled;
+  # the application and readiness probe connect via the dedicated user/password below.
   rootPassword: harvest
   user: harvest
   password: harvest

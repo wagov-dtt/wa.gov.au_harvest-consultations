@@ -6,11 +6,11 @@
 
 | # | Severity | Title | Status | Reference |
 |---|---|---|---|---|
-| 1 | High | SQL injection via Helm value `mysql.table` in SQL template | **Accepted** | `chart/harvest.sql:243`, `chart/templates/configmap.yaml:10` |
-| 2 | High | Missing Secret template `mariadb-credentials` — chart broken | **Regressed** | `chart/templates/statefulset.yaml:39,47,52`; `cronjob.yaml:44,49` |
-| 3 | Medium | Default weak MariaDB credentials (`harvest`/`harvest`) | **New** | `chart/values.yaml:9-11` |
+| 1 | High | SQL injection via Helm value `mysql.table` in SQL template | **Accepted** | `chart/harvest.sql`, `chart/templates/configmap.yaml` |
+| 2 | High | Missing Secret template `mariadb-credentials` — chart broken | **Resolved** — `chart/templates/secret.yaml` present | `chart/templates/secret.yaml` |
+| 3 | Medium | Default weak MariaDB credentials (`harvest`/`harvest`) | **Documented** — override for production | `README.md`, `chart/values.yaml:9-11` |
 
-> All previously reported issues #2–9 from ISFSMS.md remain resolved; only the Secret template (#1 originally) has regressed.
+> Previously reported hardening issues remain resolved. Current accepted/documented risks are trusted Helm values and development-only default credentials.
 
 ## Detailed findings
 
@@ -18,7 +18,7 @@
 
 **Category:** V5 Validation — Injection (CWE-89)  
 **Trust boundary:** Helm values supplied at `helm install` / `--set` or via `values.yaml` (operator-controlled, potentially from CI or external configs).  
-**Sink:** `chart/harvest.sql` line 243, rendered through `tpl` in `chart/templates/configmap.yaml:10`.  
+**Sink:** `chart/harvest.sql`, rendered through `tpl` in `chart/templates/configmap.yaml`.  
 
 **Evidence:**  
 The SQL file contains:
@@ -48,29 +48,12 @@ The Helm template risk is accepted. Chart installers (`helm install`, `--set`) a
 
 ### 2. Missing Secret template for MariaDB credentials (High)
 
-**Category:** V14 Configuration — Missing security resource
+**Category:** V14 Configuration — Missing security resource  
+**Status:** Resolved. `chart/templates/secret.yaml` exists and renders the `mariadb-credentials` Secret used by the StatefulSet and CronJob.
 
-**Evidence:**  
-The chart defines credential values in `chart/values.yaml` (`mariadb.rootPassword`, `mariadb.user`, `mariadb.password`), and both the StatefulSet (`chart/templates/statefulset.yaml` lines 39, 47, 52) and the CronJob (`chart/templates/cronjob.yaml` lines 44, 49) reference a Kubernetes Secret named `mariadb-credentials`. No Secret template exists in the chart (`chart/templates/secret.yaml` is absent from the repository contents).  
-
-**Impact:**  
-Any attempt to install the chart will result in pod errors (`CreateContainerConfigError`) because the required Secret is missing. The chart is unusable without manual intervention, defeating its purpose as a self-contained deployment.
-
-**Preconditions:**  
-None — the chart fails to deploy immediately with default values (as shown in the README commands).
-
-**Fix:**  
-Add a `chart/templates/secret.yaml` with content similar to:
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mariadb-credentials
-type: Opaque
-stringData:
-  MARIADB_ROOT_PASSWORD: {{ .Values.mariadb.rootPassword | quote }}
-  MARIADB_USER: {{ .Values.mariadb.user | quote }}
-  MARIADB_PASSWORD: {{ .Values.mariadb.password | quote }}
+**Verification:**
+```bash
+helm template harvest chart | grep -A8 'name: mariadb-credentials'
 ```
 
 ### 3. Default weak MariaDB credentials (Medium)
@@ -78,7 +61,7 @@ stringData:
 **Category:** V2 Authentication — Weak credentials; V14 Configuration — Insecure defaults (CWE-521, CWE-1392)
 
 **Evidence:**  
-In `chart/values.yaml`, the entries `mariadb.rootPassword`, `mariadb.user`, and `mariadb.password` are all set to the literal string `harvest`. The NetworkPolicy is disabled by default (`networkPolicy.enabled: false`), meaning the database is accessible from any pod in the cluster with these well-known credentials.
+In `chart/values.yaml`, the bundled MariaDB defaults (`mariadb.rootPassword`, `mariadb.user`, and `mariadb.password`) are all set to the literal string `harvest`. When the bundled database is enabled, the NetworkPolicy is disabled by default (`networkPolicy.enabled: false`), meaning MariaDB is accessible from any pod in the cluster with these well-known credentials.
 
 **Impact:**  
 If a deployment uses the defaults (e.g., an automated pipeline that neglects to override them), an attacker who gains a foothold in the cluster (any pod) can connect to MariaDB as `harvest`/`harvest` and exfiltrate or destroy the consultation data.
@@ -87,7 +70,6 @@ If a deployment uses the defaults (e.g., an automated pipeline that neglects to 
 The chart is installed with default values, a likely accidental scenario for users who skip reading the “override for production” note.
 
 **Fix:**  
-- Enforce that credentials must be provided by using `required` in the Secret template:  
-  `{{ required "mariadb.password is required" .Values.mariadb.password }}`  
-- Or generate strong random passwords at install time (e.g., with `randAlphaNum`) and store them in the Secret.  
-- At minimum, set the defaults to empty strings so the deployment fails clearly rather than running with weak credentials.
+- For production, set `mariadb.enabled=false` and point `mysql.host` at an externally managed database.  
+- Always override `mariadb.user` and `mariadb.password` for production/external databases.  
+- A future hardening change could enforce non-empty credentials with `required` or generate strong random install-time passwords.

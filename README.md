@@ -1,21 +1,27 @@
 # DuckDB SQL Pipeline for Harvesting Consultations
 
 A single SQL file pulls consultation data from WA government Citizen Space and
-EngagementHQ APIs, normalises it, and mirrors it into MariaDB for downstream consumption.
+EngagementHQ APIs, normalises it, and mirrors it into a MariaDB table for downstream consumption.
 The runtime harvest path is DuckDB SQL only; Python is not required.
 
 ## Quick start
 
-Set the standard [DuckDB MySQL environment variables](https://duckdb.org/docs/current/core_extensions/mysql#configuration) before running locally:
+The recommended path is Helm, because `chart/harvest.sql` is templated with the
+configured output table name.
+
+For local DuckDB runs, set the standard [DuckDB MySQL environment variables](https://duckdb.org/docs/current/core_extensions/mysql#configuration), render the table name, then run the rendered SQL:
 
 ```bash
 export MYSQL_HOST=localhost MYSQL_USER=harvest MYSQL_PWD=harvest MYSQL_DATABASE=harvest
-duckdb -c ".read chart/harvest.sql"
+sed 's/{{ .Values.mysql.table }}/consultations/g' chart/harvest.sql > /tmp/harvest.sql
+duckdb -c ".read /tmp/harvest.sql"
 ```
 
 > **Note:** The pipeline needs a dedicated MySQL user with write access to the
-> `harvest` database. The local defaults use user/password `harvest` for developer
-> convenience. Override credentials for production.
+> target database/table. Helm installs write to `mysql.database`.`mysql.table`,
+> defaulting to `harvest`.`consultations`. Use a simple table identifier such as
+> `consultations`; do not pass untrusted input to `mysql.table`. The local defaults
+> use user/password `harvest` for developer convenience. Override credentials for production.
 
 ## Kubernetes
 
@@ -28,23 +34,31 @@ just test          # Trigger a one-off harvest job
 just clean         # Tear down cluster
 ```
 
+Defaults deploy an in-cluster MariaDB for local/dev use and write to table
+`harvest.consultations`. For production, disable the bundled database with
+`--set mariadb.enabled=false` and point `mysql.host` at an externally managed
+MySQL/MariaDB service. Change the table with `--set mysql.table=...` or the
+`table` variable in `justfile`.
+
 ### Helm install
 
 ```bash
 helm upgrade --install harvest chart \
   --namespace harvest-consultations --create-namespace \
-  --set mysql.host=mariadb
+  --set mysql.host=mariadb \
+  --set mysql.table=consultations
 ```
 
-Override for external databases or production credentials:
+For production/external databases, disable the bundled MariaDB StatefulSet and provide the external host plus credentials:
 
 ```bash
 helm upgrade --install harvest chart \
   --namespace harvest-consultations --create-namespace \
-  --set mysql.host=external-db \
+  --set mariadb.enabled=false \
+  --set mysql.host=external-db.example.internal \
   --set mysql.database=harvest \
+  --set mysql.table=consultations \
   --set harvest.schedule="@daily" \
-  --set mariadb.rootPassword='change-me' \
   --set mariadb.user=harvest \
   --set mariadb.password='change-me'
 ```
@@ -66,19 +80,21 @@ just ci-test         # kind → helm install → harvest job → dump → valida
 | Key | Default | Description |
 |-----|---------|-------------|
 | `mysql.host` | `mariadb` | MySQL hostname for the harvest job |
-| `mysql.database` | `harvest` | Database name |
-| `mariadb.rootPassword` | `harvest` | MariaDB root password (init only; not used by app/healthcheck) |
-| `mariadb.user` | `harvest` | Application database user |
-| `mariadb.password` | `harvest` | Application database password |
-| `mariadb.image.repository` | `mariadb` | MariaDB image |
-| `mariadb.image.tag` | `11` | MariaDB image tag |
-| `mariadb.storage.size` | `1Gi` | PVC size for MariaDB data |
-| `mariadb.storage.storageClassName` | (unset) | StorageClass for PVC (set to `"encrypted"` for at-rest encryption) |
-| `mariadb.resources.requests.memory` | `256Mi` | MariaDB memory request |
-| `mariadb.resources.requests.cpu` | `100m` | MariaDB CPU request |
-| `mariadb.resources.limits.memory` | `1Gi` | MariaDB memory limit |
-| `mariadb.resources.limits.cpu` | `1` | MariaDB CPU limit |
-| `networkPolicy.enabled` | `false` | Enable NetworkPolicy to restrict ingress to MariaDB |
+| `mysql.database` | `harvest` | Target MySQL database name |
+| `mysql.table` | `consultations` | Target MySQL table replaced by each harvest run |
+| `mariadb.enabled` | `true` | Deploy bundled MariaDB StatefulSet/Service for local/dev; set `false` for production/external databases |
+| `mariadb.rootPassword` | `harvest` | Bundled MariaDB root password (init only; not rendered when `mariadb.enabled=false`) |
+| `mariadb.user` | `harvest` | Application database user for bundled or external DB |
+| `mariadb.password` | `harvest` | Application database password for bundled or external DB |
+| `mariadb.image.repository` | `mariadb` | Bundled MariaDB image |
+| `mariadb.image.tag` | `11` | Bundled MariaDB image tag |
+| `mariadb.storage.size` | `1Gi` | PVC size for bundled MariaDB data |
+| `mariadb.storage.storageClassName` | (unset) | StorageClass for bundled MariaDB PVC (set to `"encrypted"` for at-rest encryption) |
+| `mariadb.resources.requests.memory` | `256Mi` | Bundled MariaDB memory request |
+| `mariadb.resources.requests.cpu` | `100m` | Bundled MariaDB CPU request |
+| `mariadb.resources.limits.memory` | `1Gi` | Bundled MariaDB memory limit |
+| `mariadb.resources.limits.cpu` | `1` | Bundled MariaDB CPU limit |
+| `networkPolicy.enabled` | `false` | Enable NetworkPolicy to restrict ingress to bundled MariaDB; ignored when `mariadb.enabled=false` |
 | `harvest.schedule` | `@hourly` | CronJob schedule |
 | `harvest.image.repository` | `ghcr.io/wagov-dtt/harvest-duckdb` | DuckDB image with extensions pre-installed |
 | `harvest.image.tag` | `""` | Image tag override; empty computes `{chart-version}-duckdb{appVersion without dots}` |
@@ -91,7 +107,7 @@ just ci-test         # kind → helm install → harvest job → dump → valida
 
 | Path | Purpose |
 |------|---------|
-| `chart/harvest.sql` | SQL-only DuckDB harvest pipeline |
+| `chart/harvest.sql` | SQL-only DuckDB harvest pipeline; Helm templates `mysql.table` into the final write statement |
 | `chart/templates/secret.yaml` | Mariadb-credentials Secret (auto-generated from values) |
 | `chart/templates/networkpolicy.yaml` | Optional NetworkPolicy for MariaDB ingress isolation |
 | `chart/` | Helm chart (hand-written, source of truth) |

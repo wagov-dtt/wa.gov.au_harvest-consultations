@@ -1,5 +1,5 @@
 -- harvest.sql — DuckDB SQL pipeline for harvesting consultations
--- Run:  duckdb -c ".read harvest.sql"
+-- Rendered by Helm so mysql.table can set the target table name.
 -- MySQL target via DuckDB MySQL env vars: MYSQL_HOST, MYSQL_USER, MYSQL_PWD, MYSQL_DATABASE
 -- https://duckdb.org/docs/current/core_extensions/mysql#configuration
 --
