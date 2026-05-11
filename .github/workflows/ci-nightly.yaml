@@ -42,6 +42,14 @@ jobs:
           path: dist/consultations.sql.gz
           retention-days: 7
 
+      - name: Upload CSV report artifact
+        if: always() && hashFiles('dist/consultations.csv') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: consultations-csv-report
+          path: dist/consultations.csv
+          retention-days: 7
+
       - name: Upload helm chart artifact
         if: always() && hashFiles('chart/**') != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -1,4 +1,5 @@
 [tools]
+dasel = "latest"
 duckdb = "latest"
 helm = "latest"
 just = "latest"
