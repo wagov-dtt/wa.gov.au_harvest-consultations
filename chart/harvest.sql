@@ -194,9 +194,19 @@ SELECT
             THEN 'Department of Primary Industries and Regional Development'
         WHEN url ILIKE '%haveyoursaywa.engagementhq.com%'
             THEN 'Department of Planning, Lands and Heritage'
-        WHEN "parent-id" = '38135' OR tags ILIKE '%dot%'
+        WHEN "parent-id" = '38135'
+          OR tags ILIKE '%dot%'
+          OR tags ILIKE '%dtmi%'
+          OR tags ILIKE '%taxi%'
+          OR tags ILIKE '%charter%'
+          OR tags ILIKE '%on-demand%'
+          OR tags ILIKE '%passenger transport%'
             THEN 'Department of Transport'
-        WHEN "parent-id" = '37726' OR tags ILIKE '%mrwa%' OR tags ILIKE '%main roads%'
+        WHEN "parent-id" = '37726'
+          OR tags ILIKE '%mrwa%'
+          OR tags ILIKE '%main roads%'
+          OR tags ILIKE '%hvs%'
+          OR tags ILIKE '%heavy vehicle%'
             THEN 'Main Roads Western Australia'
         WHEN "parent-id" = '38267' OR tags ILIKE '%metronet%' THEN 'METRONET'
         WHEN "parent-id" = '37724' OR tags ILIKE '%westport%' THEN 'Westport'
@@ -236,6 +246,29 @@ SELECT source, status, count(*) AS rows
 FROM consultations_final
 GROUP BY source, status
 ORDER BY source, status;
+
+-- ============================================================================
+-- 5b. Schema guard: fail the pipeline if output shape or row count regresses
+-- ============================================================================
+SELECT CASE
+    WHEN columns = ['source', 'name', 'description', 'status', 'agency', 'tags', 'region', 'url', 'publishdate', 'expirydate']
+    THEN 'schema: ok'
+    ELSE error('Schema mismatch. Expected 10 columns: source,name,description,status,agency,tags,region,url,publishdate,expirydate. Got: ' || array_to_string(columns, ','))
+END AS schema_check
+FROM (
+    SELECT array_agg(column_name ORDER BY ordinal_position) AS columns
+    FROM information_schema.columns
+    WHERE table_name = 'consultations_final'
+);
+
+SELECT CASE
+    WHEN cnt >= 10 AND cnt <= 50000
+    THEN 'rowcount: ok'
+    ELSE error('Row count out of bounds: ' || cnt || ' (expected 10-50000)')
+END AS rowcount_check
+FROM (
+    SELECT count(*) AS cnt FROM consultations_final
+);
 
 -- ============================================================================
 -- 6. Mirror to MySQL using env vars (MYSQL_HOST, MYSQL_USER, MYSQL_PWD, MYSQL_DATABASE)
