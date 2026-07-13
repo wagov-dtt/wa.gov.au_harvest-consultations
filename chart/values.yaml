@@ -4,6 +4,7 @@ db:
   table: consultations
   user: harvest
   password: harvest
+  # Use a pre-existing Secret in production instead of setting credentials here.
   existingSecret: ""
   secretKeys:
     user: DB_USER
@@ -37,6 +38,7 @@ harvest:
   schedule: "@hourly"
   suspend: false
   startingDeadlineSeconds: 1800
+  # The live harvest normally completes within this Job deadline.
   activeDeadlineSeconds: 900
   backoffLimit: 2
   successfulJobsHistoryLimit: 1

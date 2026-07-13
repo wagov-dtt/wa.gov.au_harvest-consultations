@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.9] — 2026-07-13
+
+### Changed
+- Documented OCI installation, the external Secret contract, immutable image
+  pinning, CronJob lifecycle values, and the SQL maintenance/test boundary.
+
 ## [0.5.8] — 2026-07-13
 
 ### Added
