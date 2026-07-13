@@ -1,7 +1,7 @@
 [tools]
-dasel = "latest"
-duckdb = "latest"
-helm = "latest"
-just = "latest"
-kind = "latest"
-kubectl = "latest"
+dasel = "3.11.2"
+duckdb = "1.5.2"
+helm = "3.19.0"
+just = "1.40.0"
+kind = "0.29.0"
+kubectl = "1.34.1"

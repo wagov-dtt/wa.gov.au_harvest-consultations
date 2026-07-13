@@ -36,8 +36,7 @@ helm upgrade --install harvest chart \
   --set db.host=external-db.example.internal \
   --set db.database=harvest \
   --set db.table=consultations \
-  --set db.user=harvest \
-  --set db.password='change-me' \
+  --set db.existingSecret=harvest-db \
   --set harvest.schedule='@daily'
 ```
 
@@ -45,6 +44,8 @@ Notes:
 
 - `db.table` is rendered into SQL; use a simple trusted identifier such as
   `consultations`.
+- An existing Secret must contain `DB_USER` and `DB_PASSWORD` keys. Override
+  `db.secretKeys` when it uses different key names.
 - The default `harvest`/`harvest` credentials are for local/dev only.
 - Set `networkPolicy.enabled=true` only when your CNI enforces NetworkPolicy.
 
@@ -55,7 +56,9 @@ output table placeholder yourself and use DuckDB's MySQL environment variables:
 
 ```bash
 export MYSQL_HOST=localhost MYSQL_USER=harvest MYSQL_PWD=harvest MYSQL_DATABASE=harvest
-sed 's/{{ .Values.db.table }}/consultations/g' chart/harvest.sql > /tmp/harvest.sql
+sed -e 's/{{ .Values.db.table }}/consultations/g' \
+    -e 's#/etc/config/transform.sql#chart/transform.sql#' \
+    chart/harvest.sql > /tmp/harvest.sql
 duckdb -c ".read /tmp/harvest.sql"
 ```
 
@@ -63,6 +66,7 @@ duckdb -c ".read /tmp/harvest.sql"
 
 ```bash
 just helm-install     # Install/upgrade into the configured namespace
+just check            # Run fixture SQL tests and validate chart rendering
 just ci-test          # kind → Helm install → harvest Job → dump → validate
 just helm-package     # Write dist/harvest-consultations-*.tgz
 just bump-version X.Y.Z [DUCKDB_VERSION]
@@ -77,6 +81,7 @@ just bump-version X.Y.Z [DUCKDB_VERSION]
 | `db.table` | `consultations` | Table replaced on each harvest |
 | `db.user` | `harvest` | Application database user |
 | `db.password` | `harvest` | Application database password |
+| `db.existingSecret` | unset | Existing database credentials Secret |
 | `mariadb.enabled` | `true` | Deploy bundled local/dev MariaDB |
 | `mariadb.rootPassword` | `harvest` | Bundled MariaDB root password |
 | `mariadb.image.repository` | `mariadb` | Bundled MariaDB image |
@@ -89,6 +94,13 @@ just bump-version X.Y.Z [DUCKDB_VERSION]
 | `harvest.image.repository` | `ghcr.io/wagov-dtt/harvest-duckdb` | Harvest image |
 | `harvest.image.tag` | computed | Override computed image tag |
 | `harvest.resources.*` | see `values.yaml` | Harvest Job requests/limits |
+
+## Manual run
+
+```bash
+kubectl create job harvest-manual --from=cronjob/harvest-cronjob -n harvest-consultations
+kubectl logs -f job/harvest-manual -n harvest-consultations
+```
 
 ## Files
 

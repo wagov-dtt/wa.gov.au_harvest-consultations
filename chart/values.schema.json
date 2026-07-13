@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["db", "harvest", "mariadb"],
+  "properties": {
+    "db": {
+      "type": "object",
+      "required": ["host", "database", "table", "secretKeys"],
+      "properties": {
+        "host": { "type": "string", "minLength": 1 },
+        "database": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+        "table": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+        "existingSecret": { "type": "string" },
+        "secretKeys": {
+          "type": "object",
+          "required": ["user", "password", "rootPassword"]
+        }
+      }
+    },
+    "harvest": {
+      "type": "object",
+      "required": ["schedule", "activeDeadlineSeconds", "backoffLimit"],
+      "properties": {
+        "schedule": { "type": "string", "minLength": 1 },
+        "activeDeadlineSeconds": { "type": "integer", "minimum": 1 },
+        "backoffLimit": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "mariadb": { "type": "object" }
+  }
+}

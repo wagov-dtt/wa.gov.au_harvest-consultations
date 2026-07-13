@@ -4,6 +4,11 @@ db:
   table: consultations
   user: harvest
   password: harvest
+  existingSecret: ""
+  secretKeys:
+    user: DB_USER
+    password: DB_PASSWORD
+    rootPassword: MARIADB_ROOT_PASSWORD
 
 mariadb:
   # Enable only for local/dev installs. For production, use an external database
@@ -30,10 +35,17 @@ networkPolicy:
 
 harvest:
   schedule: "@hourly"
+  suspend: false
+  startingDeadlineSeconds: 1800
+  activeDeadlineSeconds: 900
+  backoffLimit: 2
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  ttlSecondsAfterFinished: 86400
   image:
     repository: ghcr.io/wagov-dtt/harvest-duckdb
     tag: ""  # default: {chart-version}-duckdb{appVersion without dots}
-    # digest: "sha256:..."  # pin to immutable digest for supply-chain assurance
+    digest: ""  # e.g. sha256:...; takes precedence over tag
   resources:
     requests:
       memory: "256Mi"

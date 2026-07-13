@@ -9,8 +9,15 @@ metadata:
 spec:
   schedule: {{ .Values.harvest.schedule | quote }}
   concurrencyPolicy: Forbid
+  suspend: {{ .Values.harvest.suspend }}
+  startingDeadlineSeconds: {{ .Values.harvest.startingDeadlineSeconds }}
+  successfulJobsHistoryLimit: {{ .Values.harvest.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.harvest.failedJobsHistoryLimit }}
   jobTemplate:
     spec:
+      backoffLimit: {{ .Values.harvest.backoffLimit }}
+      activeDeadlineSeconds: {{ .Values.harvest.activeDeadlineSeconds }}
+      ttlSecondsAfterFinished: {{ .Values.harvest.ttlSecondsAfterFinished }}
       template:
         metadata:
           labels:
@@ -18,7 +25,7 @@ spec:
         spec:
           containers:
             - name: harvest
-              image: "{{ .Values.harvest.image.repository }}:{{ include "harvest-consultations.harvestImageTag" . }}"
+              image: {{ include "harvest-consultations.harvestImage" . | quote }}
               imagePullPolicy: IfNotPresent
               command: ["duckdb", "-c", ".read /etc/config/harvest.sql"]
               resources:
@@ -39,13 +46,13 @@ spec:
                 - name: MYSQL_USER
                   valueFrom:
                     secretKeyRef:
-                      name: db-credentials
-                      key: DB_USER
+                      name: {{ include "harvest-consultations.secretName" . }}
+                      key: {{ .Values.db.secretKeys.user }}
                 - name: MYSQL_PWD
                   valueFrom:
                     secretKeyRef:
-                      name: db-credentials
-                      key: DB_PASSWORD
+                      name: {{ include "harvest-consultations.secretName" . }}
+                      key: {{ .Values.db.secretKeys.password }}
                 - name: MYSQL_DATABASE
                   value: {{ .Values.db.database | quote }}
               volumeMounts:

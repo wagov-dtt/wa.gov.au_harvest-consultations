@@ -1,6 +1,17 @@
 # Changelog
 
-## [0.5.7] — Unreleased
+## [0.5.8] — 2026-07-13
+
+### Added
+- Fixture tests for deterministic transformation, status, date, schema, and agency mapping logic.
+- Pull request checks for SQL, Helm rendering, and the container build.
+- Existing Kubernetes Secret support, chart values schema, image digest support, and configurable CronJob lifecycle limits.
+
+### Changed
+- Extracted deterministic transforms into `chart/transform.sql`; agency rules are maintained as mapping data with explicit precedence.
+- Pinned development and CI tool versions.
+
+## [0.5.7] — 2026-05-11
 
 ### Added
 - **Schema guard assertions** in `harvest.sql`: validates output column names and order against `['source', 'name', 'description', 'status', 'agency', 'tags', 'region', 'url', 'publishdate', 'expirydate']` using `information_schema.columns`, and row count range (10–50,000). Mismatch calls `error()`, failing the job before MySQL mirror.

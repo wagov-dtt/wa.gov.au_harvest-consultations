@@ -8,3 +8,5 @@ metadata:
 data:
   harvest.sql: |
 {{ tpl (.Files.Get "harvest.sql") . | indent 4 }}
+  transform.sql: |
+{{ .Files.Get "transform.sql" | indent 4 }}

@@ -11,6 +11,12 @@ csv_sql := "LOAD mysql; ATTACH '' AS mysqldb (TYPE mysql); COPY (SELECT * FROM m
 default:
   just --choose
 
+check:
+  duckdb < tests/transform.sql
+  helm lint chart
+  helm template harvest chart > /dev/null
+  helm template harvest chart --set mariadb.enabled=false --set db.existingSecret=external-db > /dev/null
+
 helm-install:
   helm upgrade --install harvest chart \
     --namespace {{ns}} --create-namespace \
@@ -18,11 +24,19 @@ helm-install:
 
 kind-up:
   kind get clusters | grep -q harvest || kind create cluster --name harvest
+  docker build --build-arg DUCKDB_VERSION="{{duckdb_version}}" -t "{{image}}:{{image_tag}}" .
+  kind load docker-image --name harvest "{{image}}:{{image_tag}}"
   just helm-install
 
 test: kind-up
+  #!/usr/bin/env bash
+  set -euo pipefail
   kubectl delete job test -n {{ns}} --ignore-not-found
   kubectl create job test --from cronjob/harvest-cronjob -n {{ns}}
+  kubectl wait --for=condition=complete job/test -n {{ns}} --timeout=300s || {
+    kubectl logs job/test -n {{ns}} --tail=100
+    exit 1
+  }
 
 ci-test: kind-up
   #!/usr/bin/env bash

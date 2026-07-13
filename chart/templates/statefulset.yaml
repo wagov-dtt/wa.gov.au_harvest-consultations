@@ -37,20 +37,20 @@ spec:
             - name: MARIADB_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: db-credentials
-                  key: MARIADB_ROOT_PASSWORD
+                  name: {{ include "harvest-consultations.secretName" . }}
+                  key: {{ .Values.db.secretKeys.rootPassword }}
             - name: MARIADB_DATABASE
               value: {{ .Values.db.database | quote }}
             - name: MARIADB_USER
               valueFrom:
                 secretKeyRef:
-                  name: db-credentials
-                  key: DB_USER
+                  name: {{ include "harvest-consultations.secretName" . }}
+                  key: {{ .Values.db.secretKeys.user }}
             - name: MARIADB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: db-credentials
-                  key: DB_PASSWORD
+                  name: {{ include "harvest-consultations.secretName" . }}
+                  key: {{ .Values.db.secretKeys.password }}
           resources:
             {{- toYaml .Values.mariadb.resources | nindent 12 }}
           volumeMounts:
