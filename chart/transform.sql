@@ -11,13 +11,13 @@ INSERT INTO engagementhq_agency_rules VALUES
     (10, 'url', 'engageagric.engagementhq.com', 'Department of Primary Industries and Regional Development'),
     (10, 'url', 'yoursay.dpird.wa.gov.au', 'Department of Primary Industries and Regional Development'),
     (20, 'url', 'haveyoursaywa.engagementhq.com', 'Department of Planning, Lands and Heritage'),
-    (30, 'parent-id', '38135', 'Department of Transport'),
-    (30, 'tag', 'dot', 'Department of Transport'),
-    (30, 'tag', 'dtmi', 'Department of Transport'),
-    (30, 'tag', 'taxi', 'Department of Transport'),
-    (30, 'tag', 'charter', 'Department of Transport'),
-    (30, 'tag', 'on-demand', 'Department of Transport'),
-    (30, 'tag', 'passenger transport', 'Department of Transport'),
+    (30, 'parent-id', '38135', 'Department of Transport and Major Infrastructure'),
+    (30, 'tag', 'dot', 'Department of Transport and Major Infrastructure'),
+    (30, 'tag', 'dtmi', 'Department of Transport and Major Infrastructure'),
+    (30, 'tag', 'taxi', 'Department of Transport and Major Infrastructure'),
+    (30, 'tag', 'charter', 'Department of Transport and Major Infrastructure'),
+    (30, 'tag', 'on-demand', 'Department of Transport and Major Infrastructure'),
+    (30, 'tag', 'passenger transport', 'Department of Transport and Major Infrastructure'),
     (40, 'parent-id', '37726', 'Main Roads Western Australia'),
     (40, 'tag', 'mrwa', 'Main Roads Western Australia'),
     (40, 'tag', 'main roads', 'Main Roads Western Australia'),
@@ -42,7 +42,7 @@ SELECT
     CASE
         WHEN url ILIKE '%consultation.health.wa.gov.au%' THEN 'Department of Health'
         WHEN url ILIKE '%consult.dwer.wa.gov.au%' THEN 'Department of Water and Environmental Regulation'
-        WHEN url ILIKE '%consultation.dmirs.wa.gov.au%' THEN 'Department of Energy, Mines, Industry Regulation and Safety'
+        WHEN url ILIKE '%consultation.dmirs.wa.gov.au%' THEN 'Department of Local Government, Industry Regulation and Safety'
         ELSE COALESCE(department, 'Government of Western Australia')
     END AS agency,
     'Western Australia' AS region,
