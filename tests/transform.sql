@@ -37,7 +37,7 @@ SELECT CASE WHEN agency = 'Main Roads Western Australia'
     THEN true ELSE error('parent-id mapping failed') END
 FROM engagementhq_std WHERE id = 'ehq-parent';
 
-SELECT CASE WHEN agency = 'Department of Transport'
+SELECT CASE WHEN agency = 'Department of Transport and Major Infrastructure'
     THEN true ELSE error('tag mapping failed') END
 FROM engagementhq_std WHERE id = 'ehq-tag';
 
